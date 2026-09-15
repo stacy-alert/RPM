@@ -1,0 +1,288 @@
+/* RPM Habitat Conservation — shared stylesheet
+   Palette: wet shale grey, limestone buff, winter oak brown, creek-water slate,
+   one restrained living green (torreya). */
+
+:root {
+  --shale: #4A4740;
+  --buff: #D8CFBE;
+  --oak: #6B4A34;
+  --slate: #3E4A4F;
+  --torreya: #3F4F3A;
+  --paper: #F4F1EA;
+
+  --serif: "Fraunces", Georgia, "Times New Roman", serif;
+  --sans: "Source Sans 3", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  --measure: 42rem;
+  --wide: 72rem;
+}
+
+*, *::before, *::after {
+  box-sizing: border-box;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  margin: 0;
+  background: var(--paper);
+  color: var(--shale);
+  font-family: var(--sans);
+  font-size: 1.0625rem;
+  line-height: 1.6;
+}
+
+h1, h2, h3 {
+  font-family: var(--serif);
+  font-weight: 600;
+  line-height: 1.2;
+  color: var(--shale);
+  margin: 0 0 0.6em;
+}
+
+h1 { font-size: clamp(2rem, 1.5rem + 2vw, 3.1rem); font-weight: 500; }
+h2 { font-size: clamp(1.4rem, 1.2rem + 1vw, 1.9rem); }
+h3 { font-size: 1.2rem; }
+
+p {
+  margin: 0 0 1.2em;
+  max-width: var(--measure);
+}
+
+a {
+  color: var(--slate);
+  text-decoration: underline;
+  text-decoration-color: color-mix(in srgb, var(--slate) 45%, transparent);
+  text-underline-offset: 0.15em;
+}
+
+a:hover {
+  color: var(--oak);
+}
+
+a:focus-visible,
+button:focus-visible,
+[tabindex]:focus-visible {
+  outline: 3px solid var(--torreya);
+  outline-offset: 3px;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}
+
+.wrap {
+  width: 100%;
+  max-width: var(--wide);
+  margin-inline: auto;
+  padding-inline: 1.5rem;
+}
+
+/* Skip link */
+.skip-link {
+  position: absolute;
+  left: -999px;
+  top: auto;
+  background: var(--paper);
+  color: var(--shale);
+  padding: 0.75em 1em;
+  border: 1px solid var(--shale);
+  z-index: 100;
+}
+
+.skip-link:focus {
+  left: 1rem;
+  top: 1rem;
+}
+
+/* Header / nav */
+.site-header {
+  border-bottom: 1px solid color-mix(in srgb, var(--oak) 40%, transparent);
+}
+
+.site-header .wrap {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 0.5rem 1.5rem;
+  padding-block: 1.25rem;
+}
+
+.site-title {
+  font-family: var(--serif);
+  font-size: 1.15rem;
+  font-weight: 600;
+  color: var(--shale);
+  text-decoration: none;
+}
+
+.site-title:hover {
+  color: var(--shale);
+}
+
+.site-nav ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.site-nav a {
+  text-decoration: none;
+  color: var(--slate);
+  border-bottom: 1px solid transparent;
+  padding-bottom: 0.15em;
+}
+
+.site-nav a:hover {
+  border-bottom-color: var(--oak);
+}
+
+.site-nav a[aria-current="page"] {
+  color: var(--shale);
+  border-bottom-color: var(--torreya);
+}
+
+/* Hero */
+.hero {
+  padding-block: 2rem 1rem;
+}
+
+.hero-art {
+  width: 100%;
+  height: auto;
+  border: 1px solid color-mix(in srgb, var(--oak) 35%, transparent);
+}
+
+.hero-heading {
+  max-width: 38rem;
+  margin-top: 1.5rem;
+}
+
+/* Sections */
+.section {
+  padding-block: 2.5rem;
+  border-top: 1px solid color-mix(in srgb, var(--shale) 15%, transparent);
+}
+
+.section:first-of-type {
+  border-top: none;
+}
+
+.section-narrow {
+  max-width: var(--measure);
+}
+
+/* Three-block summary (plain blocks, no cards) */
+.activities {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+}
+
+@media (min-width: 46rem) {
+  .activities {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 2.5rem;
+  }
+}
+
+.activity {
+  border-top: 3px solid var(--oak);
+  padding-top: 0.9rem;
+}
+
+.activity h3 {
+  margin-bottom: 0.4em;
+}
+
+.activity p {
+  margin-bottom: 0.8em;
+}
+
+/* Long-form article pages */
+.article p,
+.article li {
+  max-width: var(--measure);
+}
+
+.article .lede {
+  font-family: var(--serif);
+  font-size: 1.25rem;
+  color: var(--shale);
+}
+
+.article hr {
+  border: none;
+  border-top: 1px solid color-mix(in srgb, var(--oak) 45%, transparent);
+  width: 4rem;
+  margin: 2.5rem 0;
+}
+
+/* Photo placeholder (clearly labeled, until real photographs are supplied) */
+.photo-placeholder {
+  aspect-ratio: 16 / 10;
+  width: 100%;
+  max-width: var(--wide);
+  border: 1px dashed color-mix(in srgb, var(--shale) 55%, transparent);
+  background: var(--buff);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  color: var(--shale);
+  font-size: 0.95rem;
+  padding: 1rem;
+  margin-block: 1.5rem;
+}
+
+/* Further reading / allies */
+.further-reading ul {
+  padding-left: 1.1rem;
+}
+
+.further-reading li {
+  margin-bottom: 0.5em;
+}
+
+/* Contact */
+.contact-email {
+  font-family: var(--serif);
+  font-size: 1.3rem;
+}
+
+/* Footer */
+.site-footer {
+  border-top: 1px solid color-mix(in srgb, var(--oak) 40%, transparent);
+  margin-top: 3rem;
+}
+
+.site-footer .wrap {
+  padding-block: 1.5rem;
+  font-size: 0.9rem;
+  color: var(--shale);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1.5rem;
+  justify-content: space-between;
+}
+
+.site-footer a {
+  color: var(--slate);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}

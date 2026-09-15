@@ -1,0 +1,29 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 460" role="img" aria-hidden="true" focusable="false">
+  <title>Cross-section illustration of a wooded hillside descending to a creek confluence</title>
+  <rect x="0" y="0" width="1200" height="460" fill="#F4F1EA" />
+
+  <!-- hillside mass (fallback under bands) -->
+  <polygon fill="#D8CFBE" points="0,110 150,140 300,190 450,260 560,330 650,385 760,400 900,375 1050,350 1200,320 1200,460 0,460" />
+
+  <!-- strata bands, near-surface to deep -->
+  <polygon fill="#D8CFBE" points="0,110 150,140 300,190 450,260 560,330 650,385 760,400 900,375 1050,350 1200,320 1200,375 1050,405 900,430 760,455 650,440 560,385 450,315 300,245 150,195 0,165" />
+  <polygon fill="#6B4A34" points="0,165 150,195 300,245 450,315 560,385 650,440 760,455 900,430 1050,405 1200,375 1200,430 1050,460 900,460 760,460 650,460 560,460 450,460 300,460 150,460 0,460" />
+  <polygon fill="#4A4740" points="0,220 150,250 300,300 450,370 560,440 650,460 760,460 900,460 1050,460 1200,460 1200,460 0,460" />
+
+  <!-- creek: two tributaries converging into one -->
+  <path d="M 560,360 L 600,380 L 650,395 L 690,402" fill="none" stroke="#3E4A4F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 760,420 L 720,410 L 690,402" fill="none" stroke="#3E4A4F" stroke-width="4" stroke-linecap="round" stroke-linejoin="round" />
+  <path d="M 690,402 L 780,410 L 900,412 L 1050,408 L 1200,400" fill="none" stroke="#3E4A4F" stroke-width="6" stroke-linecap="round" stroke-linejoin="round" />
+
+  <!-- conifers along the upper ridge -->
+  <g fill="#3F4F3A">
+    <polygon points="21,116 39,116 30,90" />
+    <polygon points="81,128 99,128 90,101" />
+    <polygon points="171,150 189,150 180,122" />
+    <polygon points="231,170 249,170 240,142" />
+    <polygon points="311,199 329,199 320,171" />
+    <polygon points="371,227 389,227 380,199" />
+    <polygon points="471,279 489,279 480,251" />
+    <polygon points="531,317 549,317 540,289" />
+  </g>
+</svg>
