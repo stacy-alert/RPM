@@ -87,3 +87,9 @@ Keep it to four. This is a small operation and a six-page nonprofit template wil
 - [ ] Supply real photographs to replace the labeled placeholder blocks on `land.html` and `stewardship.html`, and ideally replace the hero illustration (`assets/img/hillside-hero.svg`) with a real photo of the confluence if one becomes available.
 - [ ] Replace `assets/img/og-image.png` (currently a generated placeholder banded in the site's palette) with a real social-share image once photography exists.
 - [ ] Decide on and configure the actual deploy target (GitHub Pages / Netlify / Cloudflare Pages / Bluehost) — see `README.md`.
+- [ ] Confirm the exact buffalo clover species (`Trifolium reflexum`, or `Trifolium stoloniferum` / "running buffalo clover") and its current listing status — see the TODO comment in `land.html`. Note: running buffalo clover was delisted from the federal endangered species list in 2021 after recovery, so "endangered" should not be asserted for it without confirming that's actually the species present.
+
+## Amendments after initial build
+
+- The owner asked to add two more notable species to the Land page, alongside the torreya: American chestnut (*Castanea dentata*) and buffalo clover. Added to `land.html` under "Rare and notable plants," following the same no-locations/no-counts restraint as the torreya paragraph.
+- The owner asked to remove "landslide" and "unstable"-hillside framing from public-facing copy (legal/liability concern — that language could work against the owner if read adversarially). Removed from `index.html` and `land.html`. The geology and forest sections now describe the slope as steep and the canopy's erosion-control role without asserting landslide risk or instability. The original brief text above (which used that framing) is left as-is as a historical record of the initial brief — it is not current public copy.
