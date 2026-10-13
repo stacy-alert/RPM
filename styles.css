@@ -113,11 +113,20 @@ img {
 }
 
 .site-title {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.6rem;
   font-family: var(--serif);
   font-size: 1.15rem;
   font-weight: 600;
   color: var(--shale);
   text-decoration: none;
+}
+
+.site-icon {
+  width: 1.9rem;
+  height: 1.9rem;
+  flex-shrink: 0;
 }
 
 .site-title:hover {

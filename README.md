@@ -62,7 +62,7 @@ variables → Actions**:
 | `BLUEHOST_FTP_SERVER` | FTP host shown on the Bluehost FTP Accounts page |
 | `BLUEHOST_FTP_USERNAME` | full FTP username (e.g. `rpmsite@rpmhabitatconservation.org`) |
 | `BLUEHOST_FTP_PASSWORD` | the FTP account's password |
-| `BLUEHOST_FTP_DIR` | the document root for the domain (e.g. `public_html/website_ca0a5e79`) |
+| `BLUEHOST_FTP_DIR` | the document root for the domain — confirmed as `public_html` (this account's `public_html` is scoped to rpmhabitatconservation.org only; its Bluehost-created `website_ca0a5e79` subfolder is not the docroot) |
 
 Once those secrets exist, every push to `main` re-runs the deploy. To deploy
 without a new commit, run the workflow manually from the **Actions** tab
