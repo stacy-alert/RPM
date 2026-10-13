@@ -48,11 +48,30 @@ The site is plain static files, so any of the following work with no changes:
 2. Build command: none. Publish directory: `/` (repo root).
 3. Point your domain at the generated Netlify/Cloudflare site.
 
-### Bluehost (current host)
+### Bluehost (current host) — automatic via GitHub Actions
 
-Upload the contents of this repo (all files, preserving the `assets/` folder)
-to `public_html/` (or the relevant document root) via the Bluehost file
-manager or SFTP. No server-side processing is required — it's static files.
+This repo deploys automatically to Bluehost on every push to `main`, via
+`.github/workflows/deploy.yml` (uses
+[SamKirkland/FTP-Deploy-Action](https://github.com/SamKirkland/FTP-Deploy-Action)).
+
+It requires four repository secrets, set under **Settings → Secrets and
+variables → Actions**:
+
+| Secret | Value |
+|---|---|
+| `BLUEHOST_FTP_SERVER` | FTP host shown on the Bluehost FTP Accounts page |
+| `BLUEHOST_FTP_USERNAME` | full FTP username (e.g. `rpmsite@rpmhabitatconservation.org`) |
+| `BLUEHOST_FTP_PASSWORD` | the FTP account's password |
+| `BLUEHOST_FTP_DIR` | the document root for the domain (e.g. `public_html/website_ca0a5e79`) |
+
+Once those secrets exist, every push to `main` re-runs the deploy. To deploy
+without a new commit, run the workflow manually from the **Actions** tab
+(`Deploy to Bluehost` → **Run workflow**).
+
+To upload manually instead: copy the contents of this repo (all files,
+preserving the `assets/` folder) to the document root above via the Bluehost
+file manager or an FTP client. No server-side processing is required — it's
+static files.
 
 ## Editing
 
