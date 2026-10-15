@@ -251,6 +251,16 @@ img {
   margin-block: 1.5rem;
 }
 
+.plant-photo {
+  max-width: 100%;
+  max-height: 620px;
+  width: auto;
+  height: auto;
+  display: block;
+  margin-block: 1.5rem;
+  border: 1px solid color-mix(in srgb, var(--oak) 35%, transparent);
+}
+
 /* Further reading / allies */
 .further-reading ul {
   padding-left: 1.1rem;
