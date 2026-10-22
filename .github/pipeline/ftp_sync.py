@@ -18,6 +18,19 @@ from ftplib import FTP_TLS
 log = logging.getLogger("ftp_sync")
 
 
+def require_env(*names: str) -> None:
+    """Fail loudly, naming exactly which secrets are missing, instead of
+    letting a blank env var surface later as a cryptic ValueError/KeyError
+    deep in some unrelated line (e.g. int('') on an unset SMTP_PORT)."""
+    missing = [n for n in names if not os.environ.get(n)]
+    if missing:
+        raise SystemExit(
+            "Missing or empty required GitHub secrets: " + ", ".join(missing) +
+            ". Set these in the repo's Settings -> Secrets and variables -> "
+            "Actions, then re-run."
+        )
+
+
 def _connect() -> FTP_TLS:
     server = os.environ["BLUEHOST_FTP_SERVER"]
     username = os.environ["BLUEHOST_FTP_USERNAME"]

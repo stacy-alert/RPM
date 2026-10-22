@@ -22,6 +22,11 @@ log = logging.getLogger("main")
 HERE = Path(__file__).parent
 OVERRIDES_PATH = HERE / "overrides.json"
 
+ftp_sync.require_env(
+    "BLUEHOST_FTP_SERVER", "BLUEHOST_FTP_USERNAME", "BLUEHOST_FTP_PASSWORD", "BLUEHOST_FTP_DIR",
+    "BLUEHOST_PRIVATE_DIR", "BLUEHOST_PRIVATE_ABSOLUTE_PATH",
+)
+
 PUBLIC_REMOTE_DIR = os.environ["BLUEHOST_FTP_DIR"] + "/topsecretproject"
 PRIVATE_REMOTE_DIR = os.environ["BLUEHOST_PRIVATE_DIR"]
 PRIVATE_ABSOLUTE_PATH = os.environ.get("BLUEHOST_PRIVATE_ABSOLUTE_PATH", "")
