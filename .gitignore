@@ -1,0 +1,4 @@
+.env
+topsecretproject/config.php
+__pycache__/
+*.pyc

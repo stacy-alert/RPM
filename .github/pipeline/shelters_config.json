@@ -1,0 +1,25 @@
+{
+  "contact_email": "TODO-put-a-real-contact-email-here@example.com",
+  "project_name": "RPM Shelter Breed Preview (prototype, non-commercial)",
+  "request_delay_seconds": 4,
+  "shelters": [
+    {
+      "id": "cac",
+      "name": "Cincinnati Animal CARE",
+      "listing_url": "https://cincinnatianimalcare.org/adopt/",
+      "enabled": true,
+      "_comment": "Selectors below are PLACEHOLDERS — not yet verified against real page HTML (this environment cannot reach cincinnatianimalcare.org). Must be filled in from actual markup before this shelter can run for real. See scraper.py's CACParser for where these are used.",
+      "selectors": {
+        "dog_card": "TODO",
+        "name": "TODO",
+        "cac_id": "TODO — may need to be parsed out of the listing URL instead of a distinct element",
+        "listing_url": "TODO",
+        "photo_urls": "TODO",
+        "sex": "TODO",
+        "age": "TODO",
+        "size": "TODO",
+        "date_listed": "TODO"
+      }
+    }
+  ]
+}

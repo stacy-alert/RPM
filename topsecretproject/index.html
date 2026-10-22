@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>Shelter Breed Preview (prototype)</title>
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="bar">
+  <h1>Shelter Breed Preview</h1>
+  <p class="tag">Prototype — breed guesses from photos, for finding breed-typed dogs shelters list as "Mixed Breed."</p>
+</header>
+
+<div class="disclaimer">
+  Breed guesses come from photos and are often wrong, especially for mixed breeds.
+  Ask the shelter about a dog's behavior and history. Adoption happens through the
+  shelter — we only connect you with them.
+</div>
+
+<form class="filters" id="filters">
+  <label>
+    Looks like
+    <select name="breed" id="filter-breed">
+      <option value="">Any breed</option>
+    </select>
+  </label>
+  <label>
+    Min. confidence
+    <select name="confidence" id="filter-confidence">
+      <option value="0.75" selected>High (75%+)</option>
+      <option value="0.5">Medium (50%+)</option>
+      <option value="0">Any</option>
+    </select>
+  </label>
+  <label>
+    Sex
+    <select name="sex" id="filter-sex">
+      <option value="">Any</option>
+    </select>
+  </label>
+  <label>
+    Age
+    <select name="age" id="filter-age">
+      <option value="">Any</option>
+    </select>
+  </label>
+  <label>
+    Size
+    <select name="size" id="filter-size">
+      <option value="">Any</option>
+    </select>
+  </label>
+</form>
+
+<p class="count" id="result-count"></p>
+
+<main id="cards" class="cards"></main>
+
+<p class="last-updated" id="last-updated"></p>
+
+<dialog id="ask-dialog">
+  <form id="ask-form">
+    <h2>Ask about this dog</h2>
+    <p class="dialog-sub">Reference: <span id="ask-ref-code"></span></p>
+    <label>Your name <input type="text" name="name" required></label>
+    <label>Email <input type="email" name="email" required></label>
+    <label>Rescue or organization (optional) <input type="text" name="org"></label>
+    <label>Experience with this breed <textarea name="experience" rows="2"></textarea></label>
+    <label>Message <textarea name="message" rows="3" required></textarea></label>
+    <input type="hidden" name="reference_code" id="ask-ref-input">
+    <div class="dialog-actions">
+      <button type="button" id="ask-cancel">Cancel</button>
+      <button type="submit">Send</button>
+    </div>
+    <p class="ask-status" id="ask-status" hidden></p>
+  </form>
+</dialog>
+
+<template id="card-template">
+  <article class="card">
+    <div class="icon" aria-hidden="true">
+      <svg viewBox="0 0 64 64" width="48" height="48">
+        <circle cx="32" cy="32" r="30" fill="#eef1ee" stroke="#5a6b57" stroke-width="2"/>
+        <path d="M20 40c0-10 6-18 12-18s12 8 12 18" fill="none" stroke="#5a6b57" stroke-width="3" stroke-linecap="round"/>
+        <circle cx="26" cy="26" r="2.5" fill="#5a6b57"/>
+        <circle cx="38" cy="26" r="2.5" fill="#5a6b57"/>
+      </svg>
+    </div>
+    <h3 class="looks-like"></h3>
+    <p class="attrs"></p>
+    <p class="first-seen"></p>
+    <button type="button" class="ask-button">Ask about this dog</button>
+  </article>
+</template>
+
+<script src="script.js"></script>
+</body>
+</html>

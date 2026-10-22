@@ -1,0 +1,6 @@
+{
+  "_comment": "Keyed by reference code (e.g. BC-0142). confirmed_breed overrides the model's top-3 with a single confirmed label. hidden:true removes the dog from dogs.json entirely. Example below is inert (code doesn't exist) — delete it once you add a real one.",
+  "XX-0000": {
+    "confirmed_breed": "Border Collie"
+  }
+}
