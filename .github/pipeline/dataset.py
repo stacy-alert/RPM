@@ -63,6 +63,7 @@ def build_datasets(scraped_dogs: list[dict], classifications: dict, existing_loo
 
         new_lookup[code] = {
             "cac_id": cac_id,
+            "shelter_seq_id": dog.get("shelter_seq_id"),
             "name": dog["name"],
             "listing_url": dog["listing_url"],
         }

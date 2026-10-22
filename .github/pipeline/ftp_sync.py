@@ -57,3 +57,48 @@ def upload_text(remote_dir: str, filename: str, content: str):
         log.info("Uploaded %s to %s", filename, remote_dir)
     finally:
         ftps.quit()
+
+
+class PrivateDirUnsafeError(Exception):
+    """Raised and never swallowed — the private directory appears to be
+    inside the web root, which would make supposedly-private files
+    (lookup.json, names, CAC IDs, listing URLs) publicly reachable."""
+
+
+def verify_private_dir_is_safe(remote_dir: str, expected_absolute_path: str):
+    """Runs before every upload of anything sensitive. Uses the FTP
+    server's OWN reported absolute path (via PWD after CWD) — not a
+    client-side guess — as the source of truth, since this account's FTP
+    login has a history of landing somewhere unexpected. Fails loudly
+    (raises, does not log-and-continue) if that path contains
+    "public_html" anywhere, or doesn't match what was configured."""
+    ftps = _connect()
+    try:
+        log.info("Safety check: CWD to private dir: %s", remote_dir)
+        ftps.cwd(remote_dir)
+        reported_path = ftps.pwd()
+        log.info("Server reports absolute path: %s", reported_path)
+
+        if "public_html" in reported_path.lower():
+            raise PrivateDirUnsafeError(
+                f"REFUSING TO CONTINUE: the private directory's real server "
+                f"path is '{reported_path}', which contains 'public_html'. "
+                f"That means files meant to be private (names, CAC IDs, "
+                f"listing URLs) would be web-reachable. Fix BLUEHOST_PRIVATE_DIR "
+                f"and BLUEHOST_PRIVATE_ABSOLUTE_PATH before running this again."
+            )
+
+        if expected_absolute_path and reported_path.rstrip("/") != expected_absolute_path.rstrip("/"):
+            log.warning(
+                "Server-reported path (%s) does not exactly match "
+                "BLUEHOST_PRIVATE_ABSOLUTE_PATH (%s). Not necessarily unsafe "
+                "(trailing slash / symlink differences happen), but confirm "
+                "these actually point at the same folder.",
+                reported_path, expected_absolute_path,
+            )
+
+        canary_name = "_canary_write_test.txt"
+        ftps.storbinary(f"STOR {canary_name}", io.BytesIO(b"safety check write test\n"))
+        log.info("Canary file write to private dir succeeded: %s", canary_name)
+    finally:
+        ftps.quit()

@@ -1,27 +1,36 @@
-"""Polite scraper for shelter adoptable-dog listing pages.
+"""Scraper for shelter adoptable-dog listing pages.
 
 Ground rules, non-negotiable:
-  - Identify ourselves honestly (User-Agent names the project + a contact
-    email from shelters_config.json).
-  - Wait request_delay_seconds between every request, including between
-    paginated listing pages and individual dog detail pages.
+  - Identify ourselves honestly to the shelter's own server (User-Agent
+    names the project + a contact email from shelters_config.json).
+  - Wait request_delay_seconds between requests TO THE SHELTER'S OWN SITE.
+    This does not apply to fetching photo bytes from AnimalsFirst's S3
+    bucket afterward — that's neutral CDN infrastructure at AWS scale, not
+    the shelter's own small WordPress install, so there's no politeness
+    reason to slow those down the same way.
   - If the site responds with anything that looks like a block (403, 429,
     or a CAPTCHA/"access denied" page), stop immediately and raise
     ShelterBlockedError. Do not retry with different headers, rotate
-    anything, or otherwise try to get around a block — that's the
-    explicit instruction this was built under.
+    anything, or otherwise try to get around a block.
 
-The CAC selectors in shelters_config.json are placeholders. CACParser
-below is written so that once real page HTML is available, only the
-selectors (or, if the real structure doesn't fit a flat CSS-selector
-model, the body of `parse_listing_page`/`parse_detail_page`) need to
-change — the politeness/pagination/error-handling scaffolding stays as-is.
+CAC's listing page (built on the PetMatchPro WordPress plugin) puts every
+field we need directly on each dog's card as data-* attributes — name,
+AnimalsFirst animal ID, CAC's own sequential ID, sex, age, size, intake
+date, listing URL, and up to 5 photo URLs — so no per-dog detail-page
+fetch is needed at all. This was confirmed against real saved HTML from
+the site, not guessed.
+
+Pagination is NOT yet handled: fetch_shelter does a single plain GET of
+the listing URL and reports how many dog cards it finds versus how many
+the page itself claims to have ("N Potential Companions"), so a shortfall
+is visible rather than silent. If the real site only server-renders a
+partial list and loads the rest via scroll-triggered AJAX, this will
+under-count — see the logged comparison and topsecretproject/README.md.
 """
 
-import json
 import logging
+import re
 import time
-from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
@@ -29,15 +38,17 @@ from bs4 import BeautifulSoup
 logging.basicConfig(level=logging.INFO)
 log = logging.getLogger("scraper")
 
-CONFIG_PATH = Path(__file__).parent / "shelters_config.json"
+SIZE_DISPLAY = {"s": "Small", "m": "Medium", "l": "Large", "xl": "Extra Large"}
 
 
 class ShelterBlockedError(Exception):
     """Raised when a shelter site appears to be blocking us. Never caught-and-retried."""
 
 
-def load_config() -> dict:
-    with open(CONFIG_PATH) as f:
+def load_config():
+    import json
+    from pathlib import Path
+    with open(Path(__file__).parent / "shelters_config.json") as f:
         return json.load(f)
 
 
@@ -54,113 +65,129 @@ def _looks_blocked(response: requests.Response) -> bool:
 
 
 def polite_get(url: str, config: dict, session: requests.Session) -> requests.Response:
+    """Use for requests to the shelter's own site only — see module docstring."""
     time.sleep(config["request_delay_seconds"])
     response = session.get(url, headers={"User-Agent": _user_agent(config)}, timeout=20)
     if _looks_blocked(response):
         raise ShelterBlockedError(
             f"{url} returned a response that looks like a block "
-            f"(status {response.status_code}). Stopping — not attempting to work around it. "
-            f"Tell the site owner's project maintainer; this shelter's scrape is paused "
-            f"until investigated."
+            f"(status {response.status_code}). Stopping — not attempting to work around it."
         )
     response.raise_for_status()
     return response
 
 
-class CACParser:
-    """Parser for Cincinnati Animal CARE's adopt-a-dog listing.
+def fast_get(url: str, config: dict, session: requests.Session) -> requests.Response:
+    """Use for neutral CDN/storage fetches (photo bytes) — no artificial delay."""
+    response = session.get(url, headers={"User-Agent": _user_agent(config)}, timeout=20)
+    response.raise_for_status()
+    return response
 
-    PLACEHOLDER — selectors are not yet verified against real markup.
-    Replace the CSS selectors in shelters_config.json, or rewrite the
-    methods below directly if CAC's actual page structure doesn't fit
-    a flat selector model (e.g. if data is embedded in a JS data blob
-    rather than plain HTML).
+
+class CACParser:
+    """Parser for Cincinnati Animal CARE's PetMatchPro-powered dog listing.
+
+    Confirmed against real saved HTML (2026-10) — see the data-* attribute
+    names below, all read directly off each `.pmp-search-result-container`.
     """
 
-    def __init__(self, shelter_config: dict):
-        self.config = shelter_config
-        self.selectors = shelter_config["selectors"]
-
-    def parse_listing_page(self, html: str) -> list[dict]:
+    def parse_listing_page(self, html: str) -> tuple[list[dict], int | None]:
+        """Returns (dogs, claimed_total). claimed_total is the number the
+        page itself displays (e.g. "428 Potential Companions"), or None if
+        that element isn't found — used purely to detect a pagination
+        shortfall, not for anything functional."""
         soup = BeautifulSoup(html, "html.parser")
-        cards = soup.select(self.selectors["dog_card"])
+
+        claimed_total = None
+        count_el = soup.select_one(".pmp-search-profile-count")
+        if count_el:
+            match = re.search(r"(\d+)", count_el.get_text())
+            if match:
+                claimed_total = int(match.group(1))
+
         dogs = []
-        for card in cards:
-            dogs.append(self._parse_card(card))
-        return dogs
+        for card in soup.select(".pmp-search-result-container"):
+            dog = self._parse_card(card)
+            if dog:
+                dogs.append(dog)
+        return dogs, claimed_total
 
-    def _parse_card(self, card) -> dict:
-        def text_of(selector):
-            el = card.select_one(selector)
-            return el.get_text(strip=True) if el else None
+    def _parse_card(self, card) -> dict | None:
+        if card.get("data-species") != "dog" or card.get("data-status") != "available":
+            return None
 
-        def attr_of(selector, attr):
-            el = card.select_one(selector)
-            return el.get(attr) if el else None
+        cac_id = card.get("data-id") or card.get("data-animal-id")
+        if not cac_id:
+            return None
 
-        listing_url = attr_of(self.selectors["listing_url"], "href")
+        name_link = card.select_one(".pmp-search-result-name-link")
+        listing_url = name_link.get("href") if name_link else None
+
+        photo_urls = []
+        for key in ("data-photourl", "data-photourl1", "data-photourl2", "data-photourl3", "data-photourl4"):
+            url = card.get(key)
+            if url and url not in photo_urls:
+                photo_urls.append(url)
+
+        size_code = card.get("data-afsize")
+        size = SIZE_DISPLAY.get(size_code, size_code)
+
+        age_bucket = card.get("data-afage")
+        age = age_bucket.capitalize() if age_bucket else None
+
+        sex = card.get("data-gender")
+        sex = sex.capitalize() if sex else None
+
         return {
-            "name": text_of(self.selectors["name"]),
+            "cac_id": cac_id,
+            "shelter_seq_id": card.get("data-seqid"),
+            "name": card.get("data-animal-name") or card.get("data-name"),
             "listing_url": listing_url,
-            "cac_id": self._extract_cac_id(listing_url),
-            "photo_urls": [img.get("src") for img in card.select(self.selectors["photo_urls"])],
-            "sex": text_of(self.selectors["sex"]),
-            "age": text_of(self.selectors["age"]),
-            "size": text_of(self.selectors["size"]),
-            "date_listed": text_of(self.selectors["date_listed"]),
+            "photo_urls": photo_urls,
+            "sex": sex,
+            "age": age,
+            "size": size,
+            "date_listed": card.get("data-intakedate"),
         }
 
-    @staticmethod
-    def _extract_cac_id(listing_url: str) -> str:
-        """Best-effort extraction of CAC's internal animal ID from the listing URL.
 
-        PLACEHOLDER — needs real URL examples to get right. Falls back to
-        the full URL itself if no ID-shaped segment is found, so dogs are
-        never silently dropped, but reference-code stability depends on
-        this being a real stable ID rather than the whole URL.
-        """
-        if not listing_url:
-            return None
-        import re
-        match = re.search(r"(\d{3,})", listing_url)
-        return match.group(1) if match else listing_url
-
-    def find_next_page(self, html: str) -> str | None:
-        """Return the next listing page's URL, or None if this is the last page."""
-        next_selector = self.selectors.get("next_page_link")
-        if not next_selector:
-            return None
-        soup = BeautifulSoup(html, "html.parser")
-        next_link = soup.select_one(next_selector)
-        return next_link.get("href") if next_link else None
+PARSERS = {"cac": CACParser}
 
 
 def fetch_shelter(shelter_config: dict, config: dict) -> list[dict]:
-    """Fetch and parse all adoptable dogs for one shelter. Paginates until no next page."""
+    """Fetch and parse one shelter's listing. Single page only for now —
+    logs the claimed-vs-found comparison so a pagination shortfall is visible."""
     session = requests.Session()
-    parser = CACParser(shelter_config)  # only parser we have right now; dispatch on shelter id once more exist
+    parser_cls = PARSERS[shelter_config["parser"]]
+    parser = parser_cls()
 
-    all_dogs = []
     url = shelter_config["listing_url"]
-    page_num = 1
-    while url:
-        log.info("Fetching %s page %d: %s", shelter_config["name"], page_num, url)
-        response = polite_get(url, config, session)
-        page_dogs = parser.parse_listing_page(response.text)
-        log.info("  found %d dog(s) on this page", len(page_dogs))
-        all_dogs.extend(page_dogs)
-        url = parser.find_next_page(response.text)
-        page_num += 1
+    log.info("Fetching %s: %s", shelter_config["name"], url)
+    response = polite_get(url, config, session)
+    dogs, claimed_total = parser.parse_listing_page(response.text)
 
-    return all_dogs
+    log.info("Plain fetch found %d dog card(s).", len(dogs))
+    if claimed_total is not None:
+        log.info("Page itself claims %d total. Difference: %d", claimed_total, claimed_total - len(dogs))
+        if len(dogs) < claimed_total:
+            log.warning(
+                "Found fewer dogs than the page claims — this listing likely "
+                "loads more via scroll-triggered requests that a plain fetch "
+                "doesn't trigger. Pagination is not implemented yet; see README."
+            )
+    else:
+        log.info("Could not find the page's own total-count element to compare against.")
+
+    return dogs
 
 
 def download_photos(dog: dict, config: dict, session: requests.Session) -> list[bytes]:
     """Download one dog's photos to memory only. Caller must not write these to disk."""
     photo_bytes = []
     for photo_url in dog.get("photo_urls") or []:
-        if not photo_url:
-            continue
-        response = polite_get(photo_url, config, session)
-        photo_bytes.append(response.content)
+        try:
+            response = fast_get(photo_url, config, session)
+            photo_bytes.append(response.content)
+        except Exception as e:
+            log.warning("Could not fetch a photo (skipping it): %s", e)
     return photo_bytes

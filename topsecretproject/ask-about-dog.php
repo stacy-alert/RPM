@@ -57,6 +57,7 @@ $org = singleLine($org);
 $lookupPath = PRIVATE_DATA_PATH . '/lookup.json';
 $dogName = '(unknown — reference code not found in current lookup data)';
 $dogCacId = '';
+$dogSeqId = '';
 $dogUrl = '';
 
 if (is_readable($lookupPath)) {
@@ -65,13 +66,15 @@ if (is_readable($lookupPath)) {
         $entry = $lookup[$referenceCode];
         $dogName = (string)($entry['name'] ?? $dogName);
         $dogCacId = (string)($entry['cac_id'] ?? '');
+        $dogSeqId = (string)($entry['shelter_seq_id'] ?? '');
         $dogUrl = (string)($entry['listing_url'] ?? '');
     }
 }
 
 $body = "Reference code: {$referenceCode}\n" .
     "Dog name: {$dogName}\n" .
-    "CAC animal ID: {$dogCacId}\n" .
+    "CAC animal ID (shelter's own number): {$dogSeqId}\n" .
+    "CAC internal ID (AnimalsFirst): {$dogCacId}\n" .
     "CAC listing URL: {$dogUrl}\n\n" .
     "--- Inquirer ---\n" .
     "Name: {$visitorName}\n" .

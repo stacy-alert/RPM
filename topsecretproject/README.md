@@ -1,89 +1,85 @@
 # Shelter Breed Preview — prototype
 
-A hidden sub-site at `/topsecretproject/` that reads Cincinnati Animal
-CARE's public adoptable-dog pages once a day, guesses breed from photos
-using an open-source image classifier, and lets visitors search by
+A public-but-unlisted sub-site at `/topsecretproject/` (noindex, no nav
+link from the main site, no robots.txt entry) that reads Cincinnati
+Animal CARE's public adoptable-dog listing once a day, guesses breed from
+photos using an open-source image classifier, and lets visitors search by
 "looks like" breed — for breed rescues and experienced adopters who can't
 find breed-typed dogs in a shelter's general listing.
 
+No password gate — the folder is reachable by anyone who has the URL, but
+isn't indexed and isn't linked from anywhere.
+
 **Status: proof of concept, built without CAC's express permission to
-scrape their site.** See the top-level project history / commit messages
-for the reasoning; if this proves useful, the next step is asking CAC for
-a formal data-sharing agreement.
+scrape their site.** If this proves useful, the next step is asking CAC
+for a formal data-sharing agreement.
 
-## Before this can run for real
+## How CAC's site actually works (confirmed against real saved HTML)
 
-Two things are placeholders until you fill them in — nothing will work
-until both are done:
+CAC's listing (`/adopt/dogs/`) runs on the PetMatchPro WordPress plugin.
+Every dog's card is a `.pmp-search-result-container` element carrying
+everything we need directly as `data-*` attributes — no per-dog detail
+page fetch required:
 
-### 1. CAC page selectors (`.github/pipeline/shelters_config.json`)
+| Field | Source attribute |
+|---|---|
+| Stable internal ID | `data-id` (AnimalsFirst's own animal ID) |
+| Shelter's own ID | `data-seqid` (e.g. `56033` for Raisin — matches the number given at project start) |
+| Name | `data-animal-name` |
+| Sex | `data-gender` |
+| Age bucket | `data-afage` (baby/young/adult/senior) |
+| Size bucket | `data-afsize` (s/m/l/xl) |
+| Date listed (proxy) | `data-intakedate` |
+| Photos (up to 5) | `data-photourl`, `data-photourl1`..`data-photourl4`, hosted on `animalsfirstprod.s3.amazonaws.com` |
+| Listing URL | the `.pmp-search-result-name-link` href |
 
-The scraper's CSS selectors are all `"TODO"` because this was built in an
-environment that couldn't reach `cincinnatianimalcare.org` to see the real
-page markup. To finish this:
+`scraper.py`'s `CACParser` implements this directly — see it for the
+real, tested code rather than a selector-config layer.
 
-1. View-source (or save) CAC's `/adopt/` listing page and a single dog's
-   detail page.
-2. Fill in each selector in `shelters_config.json` — or, if the real
-   structure doesn't fit a flat "one selector per field" model (e.g. data
-   embedded in a JavaScript blob instead of plain HTML), rewrite
-   `CACParser.parse_listing_page` / `_parse_card` in
-   `.github/pipeline/scraper.py` directly.
-3. Fix `_extract_cac_id` in the same file once you know what a real CAC
-   listing URL looks like — reference-code stability depends on this
-   being a real stable per-dog ID, not a guess.
-4. Replace `contact_email` in `shelters_config.json` with a real address —
-   it goes in the scraper's User-Agent string so CAC can reach you if
-   there's ever a question about the traffic.
+## Pagination — the one thing not yet resolved
 
-### 2. A verified path outside `public_html`
-
-`lookup.json` (names, CAC IDs, listing URLs) and `.htpasswd` must live
-somewhere the web server will never serve over HTTP. Do **not** reuse a
-relative `../` guess — this Bluehost account's FTP login has, more than
-once during this project, landed somewhere other than expected, and a
-wrong guess here would make private data public.
-
-To confirm the real path:
-1. In cPanel File Manager, create a folder outside `public_html` (e.g. a
-   sibling of it, at the account root).
-2. Note cPanel's own path breadcrumb for that folder — that's your
-   `BLUEHOST_PRIVATE_ABSOLUTE_PATH` (e.g. `/home2/youraccount/private_data`).
-3. Figure out what that same folder's path looks like *relative to where
-   this FTP account's login lands* (test with a throwaway file upload and
-   confirm its on-disk location in File Manager before trusting it) —
-   that's `BLUEHOST_PRIVATE_DIR`. These two are not necessarily the same
-   string, even though they point at the same folder.
+The page displays "N Potential Companions" (428 at the time this was
+built). `fetch_shelter()` does a single plain GET and logs how many dog
+cards it actually found versus that claimed total, so a shortfall is
+visible rather than silent. Whether a live plain fetch gets all of them
+or only an initial batch (with the rest loading via scroll-triggered
+requests) was unverified as of the first real run — check the latest
+workflow run's log for the actual numbers before assuming either way.
 
 ## Required GitHub repository secrets
 
-Reuses the main site's FTP secrets, plus these new ones:
+Reuses the main site's FTP secrets, plus these:
 
 | Secret | What it's for |
 |---|---|
-| `BLUEHOST_PRIVATE_DIR` | FTP-relative path to the outside-webroot folder (see above) |
-| `BLUEHOST_PRIVATE_ABSOLUTE_PATH` | Real server filesystem path to the same folder (see above) |
-| `TOPSECRETPROJECT_PASSWORD` | The password-gate password (username is fixed as `preview`) |
+| `BLUEHOST_PRIVATE_DIR` | FTP-relative path to a folder outside `public_html`, e.g. `topsecret_private` — relative to the same FTP root as `BLUEHOST_FTP_DIR`, not nested under it |
+| `BLUEHOST_PRIVATE_ABSOLUTE_PATH` | That same folder's real server filesystem path, from cPanel File Manager's own path display |
 | `BLUEHOST_SMTP_HOST` / `BLUEHOST_SMTP_PORT` / `BLUEHOST_SMTP_USERNAME` / `BLUEHOST_SMTP_PASSWORD` | Bluehost email account credentials for authenticated SMTP (the "Ask about this dog" form) |
 | `NOTIFY_EMAIL_TO` | Where "Ask about this dog" inquiries get sent |
+
+Every run verifies `BLUEHOST_PRIVATE_DIR` actually resolves outside
+`public_html` — using the FTP server's own reported absolute path, not a
+guess — before uploading anything there, and refuses to continue (raises,
+doesn't just log a warning) if that check fails. See
+`ftp_sync.verify_private_dir_is_safe()`.
 
 ## Running it
 
 - **Automatically**: `.github/workflows/topsecretproject-refresh.yml` runs
-  once daily, plus whenever you trigger it manually from the Actions tab.
-- **Locally**, for testing the classifier/dataset logic without hitting
-  the real site: `cd .github/pipeline && pip install -r requirements.txt`,
-  then import `classifier.classify_dog()` directly with a local image file's
-  bytes, or point `scraper.py` at a saved local HTML file instead of a
-  live URL.
+  once daily, plus whenever triggered manually from the Actions tab.
+- **Locally**, for testing classifier/dataset logic without hitting the
+  real site: `cd .github/pipeline && pip install -r requirements.txt`,
+  then import `classifier.classify_dog()` directly with a local image
+  file's bytes, or call `CACParser().parse_listing_page()` on a saved
+  local HTML file instead of fetching live.
 
 ## Adding another shelter
 
-Add an entry to the `shelters` list in `shelters_config.json` with its own
-`listing_url` and `selectors`. If its page structure doesn't resemble
-CAC's, you'll likely need a new parser class in `scraper.py` rather than
-reusing `CACParser` — the scraper dispatches on shelter id, so plug a new
-parser in alongside it.
+Add an entry to the `shelters` list in `shelters_config.json` with its
+own `listing_url`, `id`, and `parser`. A new shelter almost certainly
+needs its own parser class in `scraper.py` (register it in `PARSERS`) —
+CAC's data-attribute structure is specific to the PetMatchPro plugin, not
+something to assume other shelters share.
 
 ## Adding or changing target breeds
 
@@ -104,8 +100,8 @@ were dropped) — don't force a near-miss label onto it.
 ## Editing overrides
 
 `.github/pipeline/overrides.json`, keyed by reference code (e.g.
-`BC-0142` — find it on a dog's card, or by searching workflow run logs for
-the per-breed counts, which name codes but never names/IDs/URLs):
+`BC-0142` — find it on a dog's card, or in workflow run logs' per-breed
+counts, which name codes but never names/IDs/URLs):
 
 ```json
 {
@@ -120,24 +116,15 @@ label (no percentage shown, since it's not a guess anymore).
 
 ## Rotating keys
 
-- **Bluehost FTP / SMTP passwords**: change them in cPanel, update the
-  matching GitHub secret. Next run picks it up automatically.
-- **Password-gate password**: update `TOPSECRETPROJECT_PASSWORD`, next
-  run regenerates `.htpasswd` on the server. The old password stops
-  working the moment that run completes.
+Bluehost FTP / SMTP passwords: change them in cPanel, update the matching
+GitHub secret. Next run picks it up automatically.
 
 ## Known gaps / things not verified in this environment
 
-- CAC's actual page selectors (see above) — untested against real markup.
+- Pagination (see above) — depends on the first real workflow run's logs.
 - The classifier model (`resnet50.a1_in1k` via timm) was verified for
-  correct label strings and filter behavior, but a full inference run
-  could not be tested here because this build environment couldn't reach
-  Hugging Face Hub (where timm downloads pretrained weights from) — a
-  normal GitHub Actions runner has unrestricted internet access and won't
-  hit this.
-- The `.htpasswd` format used is `{SHA}` (plain SHA1, base64) — one of
-  Apache's documented basic-auth hash formats, chosen because it needs no
-  external `htpasswd` binary. If this specific Bluehost account's Apache
-  config rejects it, the fallback is installing `apache2-utils` in the
-  workflow and shelling out to the real `htpasswd` tool for apr1-MD5
-  instead.
+  correct label strings and filter behavior, but full inference couldn't
+  be tested in the environment this was built in, because that sandbox
+  couldn't reach Hugging Face Hub (where timm downloads pretrained
+  weights from) — a normal GitHub Actions runner has unrestricted
+  internet access and won't hit this.
