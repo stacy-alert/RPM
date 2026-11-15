@@ -6,9 +6,15 @@ none of this is ever committed to the (public) repo:
   - config.php (web-reachable, but PHP-executed so never served as text):
     the private-data path and SMTP credentials ask-about-dog.php needs
 
-Also verifies, every run, that BLUEHOST_PRIVATE_DIR genuinely resolves
-outside public_html before anything sensitive (lookup.json) is ever
-uploaded there — see verify_private_dir_is_safe() in ftp_sync.py.
+Also creates the private directory if it doesn't exist yet and verifies,
+every run, that it genuinely resolves outside public_html before anything
+sensitive (lookup.json) is ever uploaded there — see ensure_private_dir()
+in ftp_sync.py. Its absolute path is discovered from the FTP server
+itself, not supplied as a secret.
+
+SMTP_HOST/SMTP_PORT default to this site's own Bluehost mailbox over
+implicit TLS on port 465 (Bluehost's own documented SMTP settings) unless
+overridden — see README for why port 465 needs SMTPS, not STARTTLS.
 """
 
 import os
@@ -17,13 +23,12 @@ import ftp_sync
 
 ftp_sync.require_env(
     "BLUEHOST_FTP_SERVER", "BLUEHOST_FTP_USERNAME", "BLUEHOST_FTP_PASSWORD", "BLUEHOST_FTP_DIR",
-    "BLUEHOST_PRIVATE_DIR", "BLUEHOST_PRIVATE_ABSOLUTE_PATH",
-    "SMTP_HOST", "SMTP_PORT", "SMTP_USERNAME", "SMTP_PASSWORD", "NOTIFY_EMAIL_TO",
+    "SMTP_USERNAME", "SMTP_PASSWORD", "NOTIFY_EMAIL_TO",
 )
 
 PUBLIC_REMOTE_DIR = os.environ["BLUEHOST_FTP_DIR"] + "/topsecretproject"
-PRIVATE_REMOTE_DIR = os.environ["BLUEHOST_PRIVATE_DIR"]
-PRIVATE_ABSOLUTE_PATH = os.environ["BLUEHOST_PRIVATE_ABSOLUTE_PATH"]
+SMTP_HOST = os.environ.get("SMTP_HOST") or "rpmhabitatconservation.org"
+SMTP_PORT = int(os.environ.get("SMTP_PORT") or "465")
 
 
 def php_str(value: str) -> str:
@@ -31,16 +36,16 @@ def php_str(value: str) -> str:
 
 
 def main():
-    ftp_sync.verify_private_dir_is_safe(PRIVATE_REMOTE_DIR, PRIVATE_ABSOLUTE_PATH)
+    private_absolute_path = ftp_sync.ensure_private_dir()
 
     htaccess_content = 'Header set X-Robots-Tag "noindex, nofollow"\n'
     ftp_sync.upload_text(PUBLIC_REMOTE_DIR, ".htaccess", htaccess_content)
 
     config_php = "\n".join([
         "<?php",
-        f"define('PRIVATE_DATA_PATH', {php_str(PRIVATE_ABSOLUTE_PATH)});",
-        f"define('SMTP_HOST', {php_str(os.environ['SMTP_HOST'])});",
-        f"define('SMTP_PORT', {int(os.environ['SMTP_PORT'])});",
+        f"define('PRIVATE_DATA_PATH', {php_str(private_absolute_path)});",
+        f"define('SMTP_HOST', {php_str(SMTP_HOST)});",
+        f"define('SMTP_PORT', {SMTP_PORT});",
         f"define('SMTP_USERNAME', {php_str(os.environ['SMTP_USERNAME'])});",
         f"define('SMTP_PASSWORD', {php_str(os.environ['SMTP_PASSWORD'])});",
         f"define('NOTIFY_EMAIL_TO', {php_str(os.environ['NOTIFY_EMAIL_TO'])});",

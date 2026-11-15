@@ -91,7 +91,12 @@ try {
     $mail->SMTPAuth = true;
     $mail->Username = SMTP_USERNAME;
     $mail->Password = SMTP_PASSWORD;
-    $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+    // Port 465 (Bluehost's documented SMTP port) is implicit TLS, not
+    // STARTTLS — using STARTTLS here is the port-465-won't-connect bug.
+    // 587 is the STARTTLS port if SMTP_PORT is ever overridden to it.
+    $mail->SMTPSecure = (SMTP_PORT === 465)
+        ? PHPMailer::ENCRYPTION_SMTPS
+        : PHPMailer::ENCRYPTION_STARTTLS;
 
     $mail->setFrom(SMTP_USERNAME, 'Shelter Breed Preview');
     $mail->addAddress(NOTIFY_EMAIL_TO);

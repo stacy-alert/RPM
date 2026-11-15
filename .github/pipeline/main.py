@@ -24,20 +24,19 @@ OVERRIDES_PATH = HERE / "overrides.json"
 
 ftp_sync.require_env(
     "BLUEHOST_FTP_SERVER", "BLUEHOST_FTP_USERNAME", "BLUEHOST_FTP_PASSWORD", "BLUEHOST_FTP_DIR",
-    "BLUEHOST_PRIVATE_DIR", "BLUEHOST_PRIVATE_ABSOLUTE_PATH",
 )
 
 PUBLIC_REMOTE_DIR = os.environ["BLUEHOST_FTP_DIR"] + "/topsecretproject"
-PRIVATE_REMOTE_DIR = os.environ["BLUEHOST_PRIVATE_DIR"]
-PRIVATE_ABSOLUTE_PATH = os.environ.get("BLUEHOST_PRIVATE_ABSOLUTE_PATH", "")
+PRIVATE_REMOTE_DIR = os.environ.get("BLUEHOST_PRIVATE_DIR") or ftp_sync.DEFAULT_PRIVATE_DIRNAME
 
 
 def main():
     # Defense in depth: the workflow already runs this check in a separate
     # step before this script, but this script uploads lookup.json too and
     # should never do so without re-confirming the path is safe, in case
-    # it's ever run standalone or the workflow steps get reordered.
-    ftp_sync.verify_private_dir_is_safe(PRIVATE_REMOTE_DIR, PRIVATE_ABSOLUTE_PATH)
+    # it's ever run standalone or the workflow steps get reordered. Already
+    # created by that earlier step, so this is just a re-verification.
+    ftp_sync.ensure_private_dir(PRIVATE_REMOTE_DIR)
 
     config = load_config()
     overrides = json.loads(OVERRIDES_PATH.read_text()) if OVERRIDES_PATH.exists() else {}

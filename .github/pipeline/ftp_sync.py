@@ -5,17 +5,21 @@ wrong remote path. Every path used here is logged so a misconfiguration is
 visible in the run output instead of silently uploading to the wrong place.
 
 All of BLUEHOST_FTP_SERVER / USERNAME / PASSWORD are the same secrets the
-main site deploy already uses. BLUEHOST_PRIVATE_DIR is new (see README) —
-an explicit, owner-confirmed absolute-or-account-relative path OUTSIDE
-public_html, never guessed from a relative "..".
+main site deploy already uses. The private directory (see README) is
+created automatically next to the FTP login's home folder, and its real
+absolute path is discovered from the server's own PWD — never typed in or
+guessed — so there's no BLUEHOST_PRIVATE_ABSOLUTE_PATH secret to keep in
+sync.
 """
 
 import io
 import logging
 import os
-from ftplib import FTP_TLS
+from ftplib import FTP_TLS, error_perm
 
 log = logging.getLogger("ftp_sync")
+
+DEFAULT_PRIVATE_DIRNAME = "topsecret_private"
 
 
 def require_env(*names: str) -> None:
@@ -78,40 +82,44 @@ class PrivateDirUnsafeError(Exception):
     (lookup.json, names, CAC IDs, listing URLs) publicly reachable."""
 
 
-def verify_private_dir_is_safe(remote_dir: str, expected_absolute_path: str):
-    """Runs before every upload of anything sensitive. Uses the FTP
-    server's OWN reported absolute path (via PWD after CWD) — not a
-    client-side guess — as the source of truth, since this account's FTP
-    login has a history of landing somewhere unexpected. Fails loudly
-    (raises, does not log-and-continue) if that path contains
-    "public_html" anywhere, or doesn't match what was configured."""
+def ensure_private_dir(dirname: str | None = None) -> str:
+    """Creates the private directory next to the FTP login's home folder
+    if it doesn't already exist, then returns its real server absolute
+    path — discovered from the FTP server's own PWD after CWD, never typed
+    in or guessed, since this account's FTP login has a history of landing
+    somewhere unexpected. Fails loudly (raises, does not log-and-continue)
+    if that path turns out to contain "public_html" anywhere, meaning
+    files meant to be private (names, CAC IDs, listing URLs) would be
+    web-reachable. Runs before every upload of anything sensitive."""
+    dirname = dirname or os.environ.get("BLUEHOST_PRIVATE_DIR") or DEFAULT_PRIVATE_DIRNAME
     ftps = _connect()
     try:
-        log.info("Safety check: CWD to private dir: %s", remote_dir)
-        ftps.cwd(remote_dir)
+        log.info("FTP login home directory: %s", ftps.pwd())
+
+        try:
+            ftps.mkd(dirname)
+            log.info("Created private directory: %s", dirname)
+        except error_perm as e:
+            log.info("mkd(%s) did not create a new directory (%s) — assuming it already exists.", dirname, e)
+
+        ftps.cwd(dirname)
         reported_path = ftps.pwd()
-        log.info("Server reports absolute path: %s", reported_path)
+        log.info("Private directory's real server path: %s", reported_path)
 
         if "public_html" in reported_path.lower():
             raise PrivateDirUnsafeError(
                 f"REFUSING TO CONTINUE: the private directory's real server "
                 f"path is '{reported_path}', which contains 'public_html'. "
                 f"That means files meant to be private (names, CAC IDs, "
-                f"listing URLs) would be web-reachable. Fix BLUEHOST_PRIVATE_DIR "
-                f"and BLUEHOST_PRIVATE_ABSOLUTE_PATH before running this again."
-            )
-
-        if expected_absolute_path and reported_path.rstrip("/") != expected_absolute_path.rstrip("/"):
-            log.warning(
-                "Server-reported path (%s) does not exactly match "
-                "BLUEHOST_PRIVATE_ABSOLUTE_PATH (%s). Not necessarily unsafe "
-                "(trailing slash / symlink differences happen), but confirm "
-                "these actually point at the same folder.",
-                reported_path, expected_absolute_path,
+                f"listing URLs) would be web-reachable. This FTP account's "
+                f"login home doesn't look like it has public_html as a "
+                f"direct sibling — check BLUEHOST_FTP_SERVER/USERNAME."
             )
 
         canary_name = "_canary_write_test.txt"
         ftps.storbinary(f"STOR {canary_name}", io.BytesIO(b"safety check write test\n"))
         log.info("Canary file write to private dir succeeded: %s", canary_name)
+
+        return reported_path
     finally:
         ftps.quit()

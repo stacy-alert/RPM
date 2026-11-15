@@ -48,20 +48,37 @@ workflow run's log for the actual numbers before assuming either way.
 
 ## Required GitHub repository secrets
 
-Reuses the main site's FTP secrets, plus these:
+Reuses the main site's FTP secrets, plus just three more:
 
 | Secret | What it's for |
 |---|---|
-| `BLUEHOST_PRIVATE_DIR` | FTP-relative path to a folder outside `public_html`, e.g. `topsecret_private` — relative to the same FTP root as `BLUEHOST_FTP_DIR`, not nested under it |
-| `BLUEHOST_PRIVATE_ABSOLUTE_PATH` | That same folder's real server filesystem path, from cPanel File Manager's own path display |
-| `BLUEHOST_SMTP_HOST` / `BLUEHOST_SMTP_PORT` / `BLUEHOST_SMTP_USERNAME` / `BLUEHOST_SMTP_PASSWORD` | Bluehost email account credentials for authenticated SMTP (the "Ask about this dog" form) |
+| `BLUEHOST_SMTP_USERNAME` | A Bluehost mailbox on the domain, e.g. `dogs@rpmhabitatconservation.org` — create one in cPanel under Email Accounts if none exists yet |
+| `BLUEHOST_SMTP_PASSWORD` | That mailbox's password |
 | `NOTIFY_EMAIL_TO` | Where "Ask about this dog" inquiries get sent |
 
-Every run verifies `BLUEHOST_PRIVATE_DIR` actually resolves outside
-`public_html` — using the FTP server's own reported absolute path, not a
-guess — before uploading anything there, and refuses to continue (raises,
-doesn't just log a warning) if that check fails. See
-`ftp_sync.verify_private_dir_is_safe()`.
+The dog list alone (no inquiry form) needs none of these beyond the FTP
+secrets already in use — the private directory and its path are created
+and discovered automatically (see below), and `BLUEHOST_SMTP_HOST` /
+`BLUEHOST_SMTP_PORT` default to this site's own domain on port 465.
+
+Optional overrides, only needed if the defaults are ever wrong:
+
+| Secret | Default if unset |
+|---|---|
+| `BLUEHOST_PRIVATE_DIR` | `topsecret_private`, created next to `public_html` if it doesn't exist |
+| `BLUEHOST_SMTP_HOST` | `rpmhabitatconservation.org` |
+| `BLUEHOST_SMTP_PORT` | `465` (implicit TLS/SMTPS — see the note below; 587 would use STARTTLS instead) |
+
+Every run creates the private directory if it's missing and verifies it
+actually resolves outside `public_html` — using the FTP server's own
+reported absolute path, never a guess or a typed-in value — before
+uploading anything there, and refuses to continue (raises, doesn't just
+log a warning) if that check fails. See `ftp_sync.ensure_private_dir()`.
+
+**Port 465 needs implicit TLS, not STARTTLS.** Bluehost's own documented
+SMTP settings use port 465 with implicit TLS (SMTPS) or port 587 with
+STARTTLS — never 465 with STARTTLS, which simply won't connect.
+`ask-about-dog.php` picks the right one based on `SMTP_PORT`.
 
 ## Running it
 
