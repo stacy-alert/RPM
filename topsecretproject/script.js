@@ -2,6 +2,7 @@
   "use strict";
 
   let allDogs = [];
+  let activeBreed = "";
 
   function pct(confidence) {
     return Math.round(confidence * 100) + "%";
@@ -14,7 +15,7 @@
   function matchLine(match) {
     if (!match) return "No target-breed match";
     if (match.confirmed) return "Confirmed: " + match.display;
-    return "Looks like: " + match.display + " (" + pct(match.confidence) + ")";
+    return "Looks like " + match.display;
   }
 
   function secondaryLine(dog) {
@@ -23,7 +24,7 @@
     return "Also possible: " + rest.map(m => m.display + " (" + pct(m.confidence) + ")").join(", ");
   }
 
-  function populateSelect(select, values, placeholder) {
+  function populateSelect(select, values) {
     const existing = new Set(Array.from(select.options).map(o => o.value));
     values.forEach(v => {
       if (v && !existing.has(v)) {
@@ -35,8 +36,22 @@
     });
   }
 
+  function setCardsState(html) {
+    document.getElementById("cards").innerHTML = html;
+  }
+
+  function stateMessageHTML(text) {
+    return (
+      '<div class="state-message">' +
+      '<svg viewBox="0 0 64 64" aria-hidden="true" class="state-icon">' +
+      '<ellipse cx="32" cy="40" rx="15" ry="12"/><ellipse cx="14" cy="24" rx="6.5" ry="8"/>' +
+      '<ellipse cx="29" cy="14" rx="6.5" ry="8.5"/><ellipse cx="46" cy="16" rx="6.5" ry="8.5"/>' +
+      '<ellipse cx="54" cy="30" rx="6" ry="7.5"/></svg>' +
+      "<p>" + text + "</p></div>"
+    );
+  }
+
   function render() {
-    const breed = document.getElementById("filter-breed").value;
     const minConfidence = parseFloat(document.getElementById("filter-confidence").value);
     const sex = document.getElementById("filter-sex").value;
     const age = document.getElementById("filter-age").value;
@@ -45,7 +60,7 @@
     const filtered = allDogs.filter(dog => {
       const match = primaryMatch(dog);
       if (!match) return false;
-      if (breed && match.display !== breed) return false;
+      if (activeBreed && match.display !== activeBreed) return false;
       if (!match.confirmed && match.confidence < minConfidence) return false;
       if (sex && dog.sex !== sex) return false;
       if (age && dog.age !== age) return false;
@@ -54,7 +69,12 @@
     });
 
     document.getElementById("result-count").textContent =
-      filtered.length + (filtered.length === 1 ? " dog" : " dogs");
+      filtered.length + (filtered.length === 1 ? " dog matches" : " dogs match");
+
+    if (!filtered.length) {
+      setCardsState(stateMessageHTML("No dogs match these filters right now. Try widening your search."));
+      return;
+    }
 
     const container = document.getElementById("cards");
     const template = document.getElementById("card-template");
@@ -63,18 +83,44 @@
     filtered.forEach(dog => {
       const node = template.content.cloneNode(true);
       const match = primaryMatch(dog);
-      node.querySelector(".looks-like").textContent = matchLine(match);
+
+      node.querySelector(".card-breed-label").textContent = match.display;
+      node.querySelector(".match-text").textContent = matchLine(match);
+
+      const badge = node.querySelector(".confidence-badge");
+      const fill = node.querySelector(".confidence-fill");
+      if (match.confirmed) {
+        badge.textContent = "Confirmed";
+        badge.classList.add("confirmed");
+        fill.style.width = "100%";
+      } else {
+        badge.textContent = pct(match.confidence);
+        fill.style.width = pct(match.confidence);
+      }
+
       const secondary = secondaryLine(dog);
-      const attrsParts = [dog.sex, dog.age, dog.size].filter(Boolean);
-      node.querySelector(".attrs").textContent = attrsParts.join(" · ") +
-        (secondary ? " — " + secondary : "");
+      const secondaryEl = node.querySelector(".secondary");
+      if (secondary) {
+        secondaryEl.textContent = secondary;
+      } else {
+        secondaryEl.remove();
+      }
+
+      const tagsEl = node.querySelector(".tags");
+      [dog.sex, dog.age, dog.size].filter(Boolean).forEach(value => {
+        const tag = document.createElement("span");
+        tag.className = "chip";
+        tag.textContent = value;
+        tagsEl.appendChild(tag);
+      });
+
       node.querySelector(".first-seen").textContent = dog.first_seen
-        ? "First seen: " + dog.first_seen
+        ? "First seen " + dog.first_seen
         : "";
 
       const identity = node.querySelector(".identity");
       if (dog.name) {
-        identity.textContent = dog.name + (dog.shelter_seq_id ? " — CAC #" + dog.shelter_seq_id : "");
+        identity.textContent = dog.name + (dog.shelter_seq_id ? " · CAC #" + dog.shelter_seq_id : "");
       } else {
         identity.remove();
       }
@@ -90,6 +136,25 @@
     });
   }
 
+  function createBreedPill(value, label) {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "breed-pill";
+    btn.textContent = label;
+    btn.dataset.breed = value;
+    btn.setAttribute("aria-pressed", value === activeBreed ? "true" : "false");
+    btn.addEventListener("click", () => {
+      activeBreed = value;
+      document.querySelectorAll(".breed-pill").forEach(p => {
+        const isActive = p === btn;
+        p.classList.toggle("active", isActive);
+        p.setAttribute("aria-pressed", isActive ? "true" : "false");
+      });
+      render();
+    });
+    return btn;
+  }
+
   function initFilters() {
     const breeds = new Set();
     const sexes = new Set();
@@ -102,7 +167,16 @@
       if (dog.age) ages.add(dog.age);
       if (dog.size) sizes.add(dog.size);
     });
-    populateSelect(document.getElementById("filter-breed"), Array.from(breeds).sort());
+
+    const pillsContainer = document.getElementById("filter-breed-pills");
+    pillsContainer.innerHTML = "";
+    const allPill = createBreedPill("", "All breeds");
+    allPill.classList.add("active");
+    pillsContainer.appendChild(allPill);
+    Array.from(breeds).sort().forEach(breed => {
+      pillsContainer.appendChild(createBreedPill(breed, breed));
+    });
+
     populateSelect(document.getElementById("filter-sex"), Array.from(sexes).sort());
     populateSelect(document.getElementById("filter-age"), Array.from(ages).sort());
     populateSelect(document.getElementById("filter-size"), Array.from(sizes).sort());
@@ -117,15 +191,15 @@
           data.last_updated ? "Last updated: " + new Date(data.last_updated).toLocaleString() : "";
         const dataAsOf = document.getElementById("data-as-of");
         if (data.data_as_of) {
-          dataAsOf.textContent = "Data as of " + data.data_as_of + " — not live; see disclaimer below.";
+          dataAsOf.textContent = "Data as of " + data.data_as_of + " — not live; see note below.";
           dataAsOf.hidden = false;
         }
         initFilters();
         render();
       })
       .catch(() => {
-        document.getElementById("result-count").textContent =
-          "Could not load dog data. Try reloading.";
+        document.getElementById("result-count").textContent = "";
+        setCardsState(stateMessageHTML("Could not load dog data right now. Try reloading the page."));
       });
 
     document.getElementById("filters").addEventListener("change", render);
