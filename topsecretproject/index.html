@@ -20,6 +20,8 @@
   shelter — we only connect you with them.
 </div>
 
+<p class="data-as-of" id="data-as-of" hidden></p>
+
 <form class="filters" id="filters">
   <label>
     Looks like
@@ -61,24 +63,6 @@
 
 <p class="last-updated" id="last-updated"></p>
 
-<dialog id="ask-dialog">
-  <form id="ask-form">
-    <h2>Ask about this dog</h2>
-    <p class="dialog-sub">Reference: <span id="ask-ref-code"></span></p>
-    <label>Your name <input type="text" name="name" required></label>
-    <label>Email <input type="email" name="email" required></label>
-    <label>Rescue or organization (optional) <input type="text" name="org"></label>
-    <label>Experience with this breed <textarea name="experience" rows="2"></textarea></label>
-    <label>Message <textarea name="message" rows="3" required></textarea></label>
-    <input type="hidden" name="reference_code" id="ask-ref-input">
-    <div class="dialog-actions">
-      <button type="button" id="ask-cancel">Cancel</button>
-      <button type="submit">Send</button>
-    </div>
-    <p class="ask-status" id="ask-status" hidden></p>
-  </form>
-</dialog>
-
 <template id="card-template">
   <article class="card">
     <div class="icon" aria-hidden="true">
@@ -92,7 +76,8 @@
     <h3 class="looks-like"></h3>
     <p class="attrs"></p>
     <p class="first-seen"></p>
-    <button type="button" class="ask-button">Ask about this dog</button>
+    <p class="identity"></p>
+    <a class="cac-link" target="_blank" rel="noopener">View at Cincinnati Animal CARE</a>
   </article>
 </template>
 

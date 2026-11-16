@@ -2,7 +2,10 @@
 
 Logging rule, enforced by code review not just discipline: nothing in this
 file logs a dog's name, CAC ID, or listing URL. Only counts and reference
-codes (which are meaningless without lookup.json) are ever printed.
+codes (which are meaningless without lookup.json) are ever printed. Note
+this is about *logs*, not the published dogs.json itself -- see dataset.py
+for the 2026-11-16 owner decision to publish name/shelter_seq_id/listing_url
+there while the email form is unconfigured.
 """
 
 import json
@@ -42,6 +45,7 @@ def main():
     overrides = json.loads(OVERRIDES_PATH.read_text()) if OVERRIDES_PATH.exists() else {}
 
     all_scraped = []
+    data_as_of = None
     for shelter in config["shelters"]:
         if not shelter.get("enabled"):
             continue
@@ -50,6 +54,8 @@ def main():
         except ShelterBlockedError as e:
             log.error("STOPPING for shelter '%s': %s", shelter["name"], e)
             raise SystemExit(1)
+        if shelter.get("source") == "snapshot" and not data_as_of:
+            data_as_of = shelter.get("snapshot_date")
         log.info("Shelter '%s': %d dog(s) found.", shelter["name"], len(dogs))
         all_scraped.extend(dogs)
 
@@ -73,7 +79,7 @@ def main():
     log.info("Existing lookup.json entries before this run: %d", len(existing_lookup))
 
     public_dogs, new_lookup = build_datasets(all_scraped, classifications, existing_lookup, overrides)
-    dogs_json = build_dogs_json(public_dogs)
+    dogs_json = build_dogs_json(public_dogs, data_as_of=data_as_of)
 
     log.info("Publishing dogs.json: %d entries.", len(public_dogs))
     log.info("New lookup.json: %d entries (was %d).", len(new_lookup), len(existing_lookup))
@@ -83,6 +89,9 @@ def main():
         for m in d["looks_like"]:
             per_breed_counts[m["display"]] = per_breed_counts.get(m["display"], 0) + 1
     log.info("Matches per breed: %s", per_breed_counts)
+
+    raisin_present = any(d.get("shelter_seq_id") == "56033" for d in all_scraped)
+    log.info("Dog with shelter_seq_id 56033 (Raisin, per project start) present in this run: %s", raisin_present)
 
     ftp_sync.upload_text(PUBLIC_REMOTE_DIR, "dogs.json", json.dumps(dogs_json, indent=2))
     ftp_sync.upload_text(PRIVATE_REMOTE_DIR, "lookup.json", json.dumps(new_lookup, indent=2))

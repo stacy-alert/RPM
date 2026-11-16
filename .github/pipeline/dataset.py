@@ -8,10 +8,16 @@ usable in an email or a bookmark without it silently pointing at a
 different "looks like" claim tomorrow. If you want codes to track the
 current top match instead, that's a one-line change (see README).
 
-lookup.json is the only place a CAC animal ID, name, or listing URL is
-ever written. dogs.json is the public file and must never contain those
-fields — enforced here by construction, not by a filter: the function
-that builds a public dog record simply never reads them from the input.
+Owner decision 2026-11-16: while the email inquiry form is unconfigured,
+dogs.json also carries each dog's name, shelter_seq_id (CAC's own public
+sequential ID), and listing_url, so cards can show "Ask about this dog"
+information (name, ID, a link to the real listing) without email. This
+is a deliberate reversal of the original minimal-disclosure design, made
+with the ToS's no-republish/no-hyperlink risk flagged and accepted. The
+AnimalsFirst internal cac_id (never shown anywhere in CAC's own UI,
+meaningless to a visitor) is still kept out of the public file — only
+lookup.json (private, FTP'd outside public_html) carries it, for the
+email flow if/when it's reconfigured.
 """
 
 import re
@@ -74,6 +80,9 @@ def build_datasets(scraped_dogs: list[dict], classifications: dict, existing_loo
 
         public_dogs.append({
             "reference_code": code,
+            "name": dog.get("name"),
+            "shelter_seq_id": dog.get("shelter_seq_id"),
+            "listing_url": dog.get("listing_url"),
             "looks_like": display_matches,
             "sex": dog.get("sex"),
             "age": dog.get("age"),
@@ -97,8 +106,11 @@ def build_datasets(scraped_dogs: list[dict], classifications: dict, existing_loo
     return public_dogs, new_lookup
 
 
-def build_dogs_json(public_dogs: list[dict]) -> dict:
-    return {
+def build_dogs_json(public_dogs: list[dict], data_as_of: str | None = None) -> dict:
+    result = {
         "last_updated": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "dogs": public_dogs,
     }
+    if data_as_of:
+        result["data_as_of"] = data_as_of
+    return result

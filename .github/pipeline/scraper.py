@@ -31,6 +31,7 @@ under-count — see the logged comparison and topsecretproject/README.md.
 import logging
 import re
 import time
+from pathlib import Path
 
 import requests
 from bs4 import BeautifulSoup
@@ -155,18 +156,35 @@ PARSERS = {"cac": CACParser}
 
 
 def fetch_shelter(shelter_config: dict, config: dict) -> list[dict]:
-    """Fetch and parse one shelter's listing. Single page only for now —
-    logs the claimed-vs-found comparison so a pagination shortfall is visible."""
-    session = requests.Session()
+    """Fetch and parse one shelter's listing. Single page only for live
+    fetches — logs the claimed-vs-found comparison so a pagination
+    shortfall is visible.
+
+    When shelter_config["source"] == "snapshot", reads a saved HTML file
+    (shelter_config["snapshot_path"], relative to this file's directory)
+    instead of fetching the live site at all. Used when the live site
+    blocks the runner — see topsecretproject/README.md. Photo downloads
+    still go straight to AnimalsFirst's S3 addresses either way; only the
+    listing page itself is swapped out."""
     parser_cls = PARSERS[shelter_config["parser"]]
     parser = parser_cls()
 
-    url = shelter_config["listing_url"]
-    log.info("Fetching %s: %s", shelter_config["name"], url)
-    response = polite_get(url, config, session)
-    dogs, claimed_total = parser.parse_listing_page(response.text)
+    if shelter_config.get("source") == "snapshot":
+        snapshot_path = Path(__file__).parent / shelter_config["snapshot_path"]
+        html = snapshot_path.read_text()
+        dogs, claimed_total = parser.parse_listing_page(html)
+        log.info(
+            "Loaded %d dog card(s) from saved snapshot dated %s (not a live fetch).",
+            len(dogs), shelter_config.get("snapshot_date", "unknown date"),
+        )
+    else:
+        session = requests.Session()
+        url = shelter_config["listing_url"]
+        log.info("Fetching %s: %s", shelter_config["name"], url)
+        response = polite_get(url, config, session)
+        dogs, claimed_total = parser.parse_listing_page(response.text)
+        log.info("Plain fetch found %d dog card(s).", len(dogs))
 
-    log.info("Plain fetch found %d dog card(s).", len(dogs))
     if claimed_total is not None:
         log.info("Page itself claims %d total. Difference: %d", claimed_total, claimed_total - len(dogs))
         if len(dogs) < claimed_total:

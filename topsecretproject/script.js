@@ -71,18 +71,23 @@
       node.querySelector(".first-seen").textContent = dog.first_seen
         ? "First seen: " + dog.first_seen
         : "";
-      node.querySelector(".ask-button").addEventListener("click", () => openAskDialog(dog.reference_code));
+
+      const identity = node.querySelector(".identity");
+      if (dog.name) {
+        identity.textContent = dog.name + (dog.shelter_seq_id ? " — CAC #" + dog.shelter_seq_id : "");
+      } else {
+        identity.remove();
+      }
+
+      const link = node.querySelector(".cac-link");
+      if (dog.listing_url) {
+        link.href = dog.listing_url;
+      } else {
+        link.remove();
+      }
+
       container.appendChild(node);
     });
-  }
-
-  function openAskDialog(referenceCode) {
-    document.getElementById("ask-ref-code").textContent = referenceCode;
-    document.getElementById("ask-ref-input").value = referenceCode;
-    const status = document.getElementById("ask-status");
-    status.hidden = true;
-    status.textContent = "";
-    document.getElementById("ask-dialog").showModal();
   }
 
   function initFilters() {
@@ -110,6 +115,11 @@
         allDogs = data.dogs || [];
         document.getElementById("last-updated").textContent =
           data.last_updated ? "Last updated: " + new Date(data.last_updated).toLocaleString() : "";
+        const dataAsOf = document.getElementById("data-as-of");
+        if (data.data_as_of) {
+          dataAsOf.textContent = "Data as of " + data.data_as_of + " — not live; see disclaimer below.";
+          dataAsOf.hidden = false;
+        }
         initFilters();
         render();
       })
@@ -119,39 +129,6 @@
       });
 
     document.getElementById("filters").addEventListener("change", render);
-    document.getElementById("ask-cancel").addEventListener("click", () => {
-      document.getElementById("ask-dialog").close();
-    });
-
-    document.getElementById("ask-form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      const form = event.target;
-      const status = document.getElementById("ask-status");
-      const submitButton = form.querySelector('button[type="submit"]');
-      submitButton.disabled = true;
-      status.hidden = false;
-      status.textContent = "Sending...";
-
-      fetch("ask-about-dog.php", {
-        method: "POST",
-        body: new FormData(form),
-      })
-        .then(r => r.json())
-        .then(result => {
-          if (result.ok) {
-            status.textContent = "Sent. We'll follow up by email.";
-            setTimeout(() => document.getElementById("ask-dialog").close(), 1500);
-          } else {
-            status.textContent = result.error || "Something went wrong. Try again.";
-          }
-        })
-        .catch(() => {
-          status.textContent = "Network error. Try again.";
-        })
-        .finally(() => {
-          submitButton.disabled = false;
-        });
-    });
   }
 
   document.addEventListener("DOMContentLoaded", init);

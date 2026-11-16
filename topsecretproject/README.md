@@ -14,6 +14,27 @@ isn't indexed and isn't linked from anywhere.
 scrape their site.** If this proves useful, the next step is asking CAC
 for a formal data-sharing agreement.
 
+**Live fetching is currently blocked.** On 2026-11-16, CAC's site
+returned HTTP 403 to the GitHub Actions runner (likely IP/ASN-level bot
+protection, not something polite request behavior can fix). Per owner
+instruction, the pipeline did not attempt to work around this. It
+currently reads from a saved HTML snapshot instead — see below — and the
+public page is labeled "Data as of [snapshot date]" so it's clear it
+isn't live.
+
+**Public data now includes name, CAC ID, and listing link.** Also on
+2026-11-16, and specifically *because* the email inquiry form isn't
+configured, the owner decided `dogs.json` should carry each dog's name,
+`shelter_seq_id` (CAC's own public sequential ID), and `listing_url`, so
+cards can show "View at Cincinnati Animal CARE" directly. This is a
+deliberate reversal of this project's original minimal-disclosure
+design — see `dataset.py`'s module docstring for exactly what changed
+and why, including the accepted ToS risk (CAC's Terms of Use prohibit
+both republishing their content and hyperlinking to their site, each
+under its own $100k liquidated-damages clause). The AnimalsFirst
+internal `cac_id` is still never made public — only `lookup.json`
+(private) carries it.
+
 ## How CAC's site actually works (confirmed against real saved HTML)
 
 CAC's listing (`/adopt/dogs/`) runs on the PetMatchPro WordPress plugin.
@@ -36,15 +57,42 @@ page fetch required:
 `scraper.py`'s `CACParser` implements this directly — see it for the
 real, tested code rather than a selector-config layer.
 
-## Pagination — the one thing not yet resolved
+## Saved-snapshot data source (while CAC blocks the runner)
 
-The page displays "N Potential Companions" (428 at the time this was
-built). `fetch_shelter()` does a single plain GET and logs how many dog
-cards it actually found versus that claimed total, so a shortfall is
-visible rather than silent. Whether a live plain fetch gets all of them
-or only an initial batch (with the rest loading via scroll-triggered
-requests) was unverified as of the first real run — check the latest
-workflow run's log for the actual numbers before assuming either way.
+`fetch_shelter()` in `scraper.py` supports two modes per shelter, picked
+by `shelters_config.json`'s `"source"` field:
+
+- `"live"` (default if unset): fetch the real URL, exactly as before.
+- `"snapshot"`: read a local HTML file (`"snapshot_path"`, relative to
+  `.github/pipeline/`) instead of touching CAC's site at all. Requires
+  `"snapshot_date"` (a human-readable string, e.g. `"November 2026"` or
+  an exact date) — this flows straight into `dogs.json`'s `data_as_of`
+  field and the page's "Data as of ..." banner.
+
+Photo downloads are unaffected either way — they always go straight to
+AnimalsFirst's S3 addresses, which is a separate question from whether
+the *listing* page itself came from a live fetch or a saved file. If S3
+ever blocks the runner too, that's a new, separate stop-and-report case.
+
+The saved HTML file is committed to the repo under
+`.github/pipeline/fixtures/` — normally CAC's identifying data would
+never be committed (see the main privacy design), but this is a single
+point-in-time snapshot the owner explicitly approved committing, since
+the same information is now published in `dogs.json` anyway (see above).
+
+To switch a shelter back to live once/if CAC's block lifts, just change
+its `"source"` back to `"live"` (or remove the key) in
+`shelters_config.json` — no code change needed.
+
+## Pagination — unresolved, moot while in snapshot mode
+
+The live page displays "N Potential Companions" (428 as of October
+2026). `fetch_shelter()`'s live-fetch path does a single plain GET and
+logs how many dog cards it actually found versus that claimed total, so
+a shortfall would be visible rather than silent — but this has never
+been exercised against the real site, since every live attempt either
+failed on missing secrets or hit the 403 block above. Revisit this once
+live fetching is possible again.
 
 ## Required GitHub repository secrets
 

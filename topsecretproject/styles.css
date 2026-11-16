@@ -126,19 +126,36 @@ body {
   font-size: 0.8rem;
 }
 
-.card .ask-button {
-  margin-top: 0.5rem;
+.card .identity {
+  margin: 0.2rem 0 0;
+  font-weight: 600;
+  font-size: 0.95rem;
+}
+
+.card .cac-link {
+  margin-top: 0.4rem;
   padding: 0.5rem 0.75rem;
   border: 1px solid var(--accent);
   background: var(--accent);
   color: white;
   border-radius: 6px;
   font-size: 0.9rem;
-  cursor: pointer;
+  text-align: center;
+  text-decoration: none;
 }
 
-.card .ask-button:hover {
+.card .cac-link:hover {
   opacity: 0.9;
+}
+
+.data-as-of {
+  background: #eef1ee;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 0.6rem 1rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+  margin: 0 0 1rem;
 }
 
 .last-updated {
@@ -146,74 +163,4 @@ body {
   font-size: 0.8rem;
   color: var(--muted);
   text-align: center;
-}
-
-dialog {
-  border: none;
-  border-radius: 10px;
-  padding: 1.25rem;
-  max-width: 28rem;
-  width: 90vw;
-}
-
-dialog::backdrop {
-  background: rgba(0, 0, 0, 0.4);
-}
-
-#ask-form {
-  display: flex;
-  flex-direction: column;
-  gap: 0.6rem;
-}
-
-#ask-form label {
-  display: flex;
-  flex-direction: column;
-  gap: 0.25rem;
-  font-size: 0.85rem;
-}
-
-#ask-form input,
-#ask-form textarea {
-  padding: 0.5rem;
-  font-size: 1rem;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  font-family: inherit;
-}
-
-.dialog-sub {
-  margin: -0.4rem 0 0.2rem;
-  color: var(--muted);
-  font-size: 0.85rem;
-}
-
-.dialog-actions {
-  display: flex;
-  justify-content: flex-end;
-  gap: 0.5rem;
-  margin-top: 0.25rem;
-}
-
-.dialog-actions button {
-  padding: 0.5rem 0.9rem;
-  border-radius: 6px;
-  font-size: 0.9rem;
-  cursor: pointer;
-}
-
-.dialog-actions button[type="submit"] {
-  border: 1px solid var(--accent);
-  background: var(--accent);
-  color: white;
-}
-
-.dialog-actions button#ask-cancel {
-  border: 1px solid var(--border);
-  background: white;
-}
-
-.ask-status {
-  font-size: 0.85rem;
-  margin: 0;
 }
