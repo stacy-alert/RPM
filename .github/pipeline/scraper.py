@@ -169,7 +169,30 @@ def fetch_shelter(shelter_config: dict, config: dict) -> list[dict]:
     parser_cls = PARSERS[shelter_config["parser"]]
     parser = parser_cls()
 
-    if shelter_config.get("source") == "snapshot":
+    if shelter_config.get("source") == "pi_upload":
+        # A home computer (see pi/cac_fetch.py) fetched the listing and
+        # uploaded the parsed cards to the private FTP folder. Nothing here
+        # touches the shelter's site.
+        import json as _json
+        from datetime import datetime, timezone
+        import ftp_sync
+        raw = ftp_sync.download_text(ftp_sync.private_dir(), "cac_raw.json")
+        if not raw:
+            raise ShelterBlockedError(
+                "No cac_raw.json in the private folder yet. Run pi/cac_fetch.py "
+                "on the home computer first."
+            )
+        data = _json.loads(raw)
+        dogs, claimed_total = data["dogs"], data.get("claimed_total")
+        fetched_at = datetime.fromisoformat(data["fetched_at"])
+        age_hours = (datetime.now(timezone.utc) - fetched_at).total_seconds() / 3600
+        shelter_config["_fetched_at"] = fetched_at
+        shelter_config["_stale"] = age_hours > 48
+        log.info("Loaded %d dog(s) from home-computer upload, fetched %.1f hour(s) ago.",
+                 len(dogs), age_hours)
+        if age_hours > 48:
+            log.warning("That upload is more than 2 days old -- is the home computer still running?")
+    elif shelter_config.get("source") == "snapshot":
         snapshot_path = Path(__file__).parent / shelter_config["snapshot_path"]
         html = snapshot_path.read_text()
         dogs, claimed_total = parser.parse_listing_page(html)

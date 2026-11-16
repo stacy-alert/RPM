@@ -56,6 +56,8 @@ def main():
             raise SystemExit(1)
         if shelter.get("source") == "snapshot" and not data_as_of:
             data_as_of = shelter.get("snapshot_date")
+        if shelter.get("_stale") and not data_as_of:
+            data_as_of = shelter["_fetched_at"].strftime("%B %-d, %Y")
         log.info("Shelter '%s': %d dog(s) found.", shelter["name"], len(dogs))
         all_scraped.extend(dogs)
 

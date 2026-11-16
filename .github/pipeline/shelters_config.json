@@ -8,7 +8,8 @@
       "name": "Cincinnati Animal CARE",
       "listing_url": "https://cincinnatianimalcare.org/adopt/dogs/",
       "enabled": true,
-      "parser": "cac"
+      "parser": "cac",
+      "source": "pi_upload"
     }
   ]
 }

@@ -22,6 +22,10 @@ log = logging.getLogger("ftp_sync")
 DEFAULT_PRIVATE_DIRNAME = "topsecret_private"
 
 
+def private_dir() -> str:
+    return os.environ.get("BLUEHOST_PRIVATE_DIR") or DEFAULT_PRIVATE_DIRNAME
+
+
 def require_env(*names: str) -> None:
     """Fail loudly, naming exactly which secrets are missing, instead of
     letting a blank env var surface later as a cryptic ValueError/KeyError
