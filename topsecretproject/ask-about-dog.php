@@ -1,21 +1,31 @@
 <?php
 declare(strict_types=1);
 
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\Exception as PHPMailerException;
+
 header('Content-Type: application/json');
 header('X-Robots-Tag: noindex, nofollow');
 
 require __DIR__ . '/config.php';
-require __DIR__ . '/vendor/phpmailer/Exception.php';
-require __DIR__ . '/vendor/phpmailer/PHPMailer.php';
-require __DIR__ . '/vendor/phpmailer/SMTP.php';
-
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\Exception as PHPMailerException;
 
 function respond(bool $ok, string $error = ''): void {
     echo json_encode(['ok' => $ok, 'error' => $error]);
     exit;
 }
+
+// MAIL_CONFIGURED is false when BLUEHOST_SMTP_USERNAME/PASSWORD/NOTIFY_EMAIL_TO
+// aren't set as GitHub secrets -- the dog list still works without them, but
+// this endpoint has nothing to send through, so fail cleanly instead of
+// hitting an undefined-constant fatal error further down.
+if (!defined('MAIL_CONFIGURED') || !MAIL_CONFIGURED) {
+    http_response_code(503);
+    respond(false, 'Inquiries are not available right now.');
+}
+
+require __DIR__ . '/vendor/phpmailer/Exception.php';
+require __DIR__ . '/vendor/phpmailer/PHPMailer.php';
+require __DIR__ . '/vendor/phpmailer/SMTP.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     http_response_code(405);

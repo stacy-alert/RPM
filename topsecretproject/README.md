@@ -61,6 +61,11 @@ secrets already in use — the private directory and its path are created
 and discovered automatically (see below), and `BLUEHOST_SMTP_HOST` /
 `BLUEHOST_SMTP_PORT` default to this site's own domain on port 465.
 
+All three are fully optional: if any is missing, the run does not fail —
+`deploy_server_files.py` just skips writing SMTP config and logs that it
+did, and `ask-about-dog.php` returns a clean "not available" response
+instead of erroring. The dog list deploys either way.
+
 Optional overrides, only needed if the defaults are ever wrong:
 
 | Secret | Default if unset |

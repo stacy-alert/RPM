@@ -23,12 +23,14 @@ import ftp_sync
 
 ftp_sync.require_env(
     "BLUEHOST_FTP_SERVER", "BLUEHOST_FTP_USERNAME", "BLUEHOST_FTP_PASSWORD", "BLUEHOST_FTP_DIR",
-    "SMTP_USERNAME", "SMTP_PASSWORD", "NOTIFY_EMAIL_TO",
 )
 
 PUBLIC_REMOTE_DIR = os.environ["BLUEHOST_FTP_DIR"] + "/topsecretproject"
 SMTP_HOST = os.environ.get("SMTP_HOST") or "rpmhabitatconservation.org"
 SMTP_PORT = int(os.environ.get("SMTP_PORT") or "465")
+MAIL_CONFIGURED = bool(
+    os.environ.get("SMTP_USERNAME") and os.environ.get("SMTP_PASSWORD") and os.environ.get("NOTIFY_EMAIL_TO")
+)
 
 
 def php_str(value: str) -> str:
@@ -41,19 +43,30 @@ def main():
     htaccess_content = 'Header set X-Robots-Tag "noindex, nofollow"\n'
     ftp_sync.upload_text(PUBLIC_REMOTE_DIR, ".htaccess", htaccess_content)
 
-    config_php = "\n".join([
+    config_lines = [
         "<?php",
         f"define('PRIVATE_DATA_PATH', {php_str(private_absolute_path)});",
-        f"define('SMTP_HOST', {php_str(SMTP_HOST)});",
-        f"define('SMTP_PORT', {SMTP_PORT});",
-        f"define('SMTP_USERNAME', {php_str(os.environ['SMTP_USERNAME'])});",
-        f"define('SMTP_PASSWORD', {php_str(os.environ['SMTP_PASSWORD'])});",
-        f"define('NOTIFY_EMAIL_TO', {php_str(os.environ['NOTIFY_EMAIL_TO'])});",
-        "",
-    ])
-    ftp_sync.upload_text(PUBLIC_REMOTE_DIR, "config.php", config_php)
+        f"define('MAIL_CONFIGURED', {'true' if MAIL_CONFIGURED else 'false'});",
+    ]
+    if MAIL_CONFIGURED:
+        config_lines += [
+            f"define('SMTP_HOST', {php_str(SMTP_HOST)});",
+            f"define('SMTP_PORT', {SMTP_PORT});",
+            f"define('SMTP_USERNAME', {php_str(os.environ['SMTP_USERNAME'])});",
+            f"define('SMTP_PASSWORD', {php_str(os.environ['SMTP_PASSWORD'])});",
+            f"define('NOTIFY_EMAIL_TO', {php_str(os.environ['NOTIFY_EMAIL_TO'])});",
+        ]
+    config_lines.append("")
+    ftp_sync.upload_text(PUBLIC_REMOTE_DIR, "config.php", "\n".join(config_lines))
 
-    print("Server config deployed (noindex header only, no auth).")
+    if MAIL_CONFIGURED:
+        print("Server config deployed (noindex header only, no auth). Email inquiries: configured.")
+    else:
+        print(
+            "Server config deployed (noindex header only, no auth). Email inquiries: "
+            "NOT configured (BLUEHOST_SMTP_USERNAME/PASSWORD/NOTIFY_EMAIL_TO not set) -- "
+            "skipping; the dog list still deploys fine."
+        )
 
 
 if __name__ == "__main__":
