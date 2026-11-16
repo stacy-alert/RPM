@@ -46,10 +46,12 @@
       if (d[k] && photos.indexOf(d[k]) < 0) photos.push(d[k]);
     });
     if (!photos.length) {
-      var imgs = e.querySelectorAll("img");
-      for (var j = 0; j < imgs.length; j++) {
+      // CAC's cards no longer carry data-photourl; the photo is the card's
+      // <img>. Take its real URL from any host, skipping inline icons.
+      var imgs = e.querySelectorAll("img.pmp-search-result-image, img");
+      for (var j = 0; j < imgs.length && photos.length < 5; j++) {
         var src = imgs[j].currentSrc || imgs[j].src || imgs[j].getAttribute("data-src") || "";
-        if (src.indexOf("animalsfirstprod.s3.amazonaws.com") > -1 && photos.indexOf(src) < 0) photos.push(src);
+        if (/^https?:\/\//.test(src) && !/\.svg(\?|$)/i.test(src) && src.indexOf("icon") < 0 && photos.indexOf(src) < 0) photos.push(src);
       }
     }
     cards.push({

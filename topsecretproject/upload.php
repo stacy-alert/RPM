@@ -64,7 +64,16 @@ foreach ($data['dogs'] as $d) {
     if ($id === null || !preg_match('/^[A-Za-z0-9_-]+$/', $id)) continue;
     $photos = [];
     foreach ((array)($d['photo_urls'] ?? []) as $u) {
-        if (is_string($u) && strpos($u, 'https://animalsfirstprod.s3.amazonaws.com/') === 0 && strlen($u) < 500) $photos[] = $u;
+        if (!is_string($u) || strlen($u) < 12 || strlen($u) >= 600) continue;
+        $p = @parse_url($u);
+        if (!$p || ($p['scheme'] ?? '') !== 'https' || empty($p['host'])) continue;
+        $host = strtolower($p['host']);
+        $okHost = false;
+        foreach (['amazonaws.com', 'cincinnatianimalcare.org', 'cloudfront.net', 'googleusercontent.com', 'wp.com'] as $h) {
+            if ($host === $h || substr($host, -strlen('.' . $h)) === '.' . $h) { $okHost = true; break; }
+        }
+        $isImg = (bool)preg_match('/\.(jpe?g|png|webp|gif)(\?|$)/i', $u);
+        if ($okHost || $isImg) $photos[] = $u;
     }
     $url = s($d['listing_url'] ?? null, 500);
     if ($url !== null && strpos($url, 'https://cincinnatianimalcare.org/') !== 0) $url = null;
