@@ -19,20 +19,33 @@ function page(string $msg, int $code = 200): void {
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') page('Nothing here.', 405);
 
-// Find the private folder: walk up from this file until a sibling
-// "topsecret_private" directory exists (it sits beside public_html).
-$private = null;
+// Data folder: <site root>/topsecret_private, the folder the daily
+// workflow's FTP login reads. Web access to it is denied by .htaccess,
+// which is (re)written here before anything is saved.
+$private = dirname(__DIR__) . '/topsecret_private';
+if (!is_dir($private) && !mkdir($private, 0750)) page('Server not set up (could not create data folder).', 500);
+$deny = "Require all denied\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\n";
+if (@file_get_contents($private . '/.htaccess') !== $deny && file_put_contents($private . '/.htaccess', $deny) === false) {
+    page('Server not set up (could not protect data folder).', 500);
+}
+
+// Token: created by pi/make_bookmark.py. Look in the data folder and in
+// any topsecret_private folder above this one (home-level FTP account).
+$expected = '';
 $dir = __DIR__;
+$candidates = [$private];
 for ($i = 0; $i < 6; $i++) {
     $dir = dirname($dir);
-    if (is_dir($dir . '/topsecret_private')) { $private = $dir . '/topsecret_private'; break; }
+    $candidates[] = $dir . '/topsecret_private';
+    $candidates[] = $dir . $dir . '/topsecret_private';
 }
-if ($private === null || strpos($private, 'public_html') !== false) page('Server not set up (private folder not found).', 500);
-
-$tokenFile = $private . '/upload_token.txt';
-$expected = is_readable($tokenFile) ? trim((string)file_get_contents($tokenFile)) : '';
+foreach ($candidates as $c) {
+    $f = $c . '/upload_token.txt';
+    if (@is_readable($f)) { $expected = trim((string)file_get_contents($f)); if (strlen($expected) >= 20) break; }
+}
+if (strlen($expected) < 20) page('Server not set up (no upload token found). Run make_bookmark.py again.', 500);
 $given = (string)($_POST['token'] ?? '');
-if (strlen($expected) < 20 || !hash_equals($expected, $given)) page('Not authorized.', 403);
+if (!hash_equals($expected, $given)) page('Not authorized.', 403);
 
 $data = json_decode((string)($_POST['data'] ?? ''), true);
 if (!is_array($data) || !isset($data['dogs']) || !is_array($data['dogs'])) page('That did not look like a dog list.', 400);

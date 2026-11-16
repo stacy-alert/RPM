@@ -120,6 +120,14 @@ def ensure_private_dir(dirname: str | None = None) -> str:
                 f"direct sibling — check BLUEHOST_FTP_SERVER/USERNAME."
             )
 
+        # The FTP login is jailed, so the path above is relative to the
+        # login folder and cannot prove the folder is outside the web
+        # root (on this host the login folder IS the site's web root).
+        # Block web access to it explicitly on every run.
+        ftps.storbinary("STOR .htaccess", io.BytesIO(
+            b"Require all denied\n<IfModule !mod_authz_core.c>\nDeny from all\n</IfModule>\n"))
+        log.info("Wrote .htaccess denying all web access to the private dir.")
+
         canary_name = "_canary_write_test.txt"
         ftps.storbinary(f"STOR {canary_name}", io.BytesIO(b"safety check write test\n"))
         log.info("Canary file write to private dir succeeded: %s", canary_name)
