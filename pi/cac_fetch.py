@@ -158,11 +158,13 @@ def connect(env):
 def upload(env, payload):
     ftps = connect(env)
     try:
+        # Two kinds of login work: the main account (opens in the home
+        # folder, so step into the private folder), or a dedicated FTP
+        # account whose own folder IS the private folder (already there).
         try:
-            ftps.mkd(PRIVATE_DIR)
+            ftps.cwd(PRIVATE_DIR)
         except error_perm:
-            pass  # already exists
-        ftps.cwd(PRIVATE_DIR)
+            pass
         where = ftps.pwd()
         if "public_html" in where.lower():
             sys.exit(f"REFUSING to upload: '{where}' is inside the public web folder.")
