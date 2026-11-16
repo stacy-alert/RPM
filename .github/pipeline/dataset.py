@@ -46,6 +46,14 @@ def build_datasets(scraped_dogs: list[dict], classifications: dict, existing_loo
     """
     cac_id_to_code = {entry["cac_id"]: code for code, entry in existing_lookup.items()}
 
+    # Seed a per-prefix high-water mark from existing codes, then bump it as
+    # we assign new ones this run, so two dogs never collide on e.g. BC-0001.
+    prefix_max = {}
+    for code in existing_lookup:
+        m = re.match(r"^([A-Za-z]+)-(\d+)$", code)
+        if m:
+            prefix_max[m.group(1)] = max(prefix_max.get(m.group(1), 0), int(m.group(2)))
+
     new_lookup = {}
     public_dogs = []
     seen_cac_ids = set()
@@ -60,7 +68,8 @@ def build_datasets(scraped_dogs: list[dict], classifications: dict, existing_loo
         code = cac_id_to_code.get(cac_id)
         if code is None:
             top_breed_code = matches[0]["code"]
-            seq = _next_sequence_for_prefix(existing_lookup, top_breed_code)
+            seq = prefix_max.get(top_breed_code, 0) + 1
+            prefix_max[top_breed_code] = seq
             code = f"{top_breed_code}-{seq:04d}"
 
         override = overrides.get(code, {})

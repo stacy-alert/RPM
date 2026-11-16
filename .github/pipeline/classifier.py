@@ -22,6 +22,14 @@ MODEL_NAME = "resnet50.a1_in1k"
 _model = None
 _transform = None
 _class_labels = None
+_label_lookup = None  # normalized breed-name component -> class index
+
+# Minimum averaged probability a target breed must reach to count as a
+# "looks like" match. The product surfaces the FEW dogs that genuinely
+# resemble a target breed among many that don't, so this favors precision:
+# below this, a tiny residual probability is noise, not a resemblance.
+# Tunable -- see README. Logged histogram helps recalibrate.
+MATCH_THRESHOLD = 0.30
 
 
 def _load_model():
@@ -50,6 +58,15 @@ def _load_model():
         from timm.data import ImageNetInfo
         info = ImageNetInfo()
         _class_labels = info.label_descriptions()
+        # Build a case-insensitive lookup from each comma-separated name
+        # component to its class index, so a configured label like
+        # "bluetick" matches a class described as "bluetick, bluetick
+        # coonhound" instead of silently scoring zero on an exact-string miss.
+        global _label_lookup
+        _label_lookup = {}
+        for _idx, _desc in enumerate(_class_labels):
+            for _part in _desc.split(","):
+                _label_lookup.setdefault(_part.strip().lower(), _idx)
     except Exception as e:
         raise RuntimeError(
             "Could not load ImageNet-1k label descriptions from "
@@ -105,23 +122,25 @@ def classify_dog(photo_bytes_list: list[bytes]) -> list[dict]:
         if is_excluded_label(label):
             averaged[idx] = 0.0
 
-    # Score only our target breeds, not the full 1000-class space — the
-    # product is "which of these breeds does this dog look like", not
-    # "what is the single most likely ImageNet class" (which would often
-    # be something irrelevant like a dog bed or a tennis ball).
+    # Score only our target breeds, not the full 1000-class space. Match
+    # each configured label by any of its comma-separated name components,
+    # case-insensitively, via the prebuilt lookup.
     scored = []
     for breed in TARGET_BREEDS:
         best_label_prob = 0.0
         for label in breed["imagenet_labels"]:
-            if label in _class_labels:
-                idx = _class_labels.index(label)
-                best_label_prob = max(best_label_prob, float(averaged[idx]))
+            for part in label.split(","):
+                idx = _label_lookup.get(part.strip().lower())
+                if idx is not None:
+                    best_label_prob = max(best_label_prob, float(averaged[idx]))
         scored.append((breed, best_label_prob))
 
     scored.sort(key=lambda pair: pair[1], reverse=True)
-    top3 = scored[:3]
+    # Keep only breeds this dog genuinely resembles (>= threshold), not
+    # every breed with a nonzero residual. Most dogs return nothing, which
+    # is the point: the site lists the few that look like a target breed.
     return [
         {"code": breed["code"], "display": breed["display"], "confidence": round(conf, 4)}
-        for breed, conf in top3
-        if conf > 0
+        for breed, conf in scored[:3]
+        if conf >= MATCH_THRESHOLD
     ]
