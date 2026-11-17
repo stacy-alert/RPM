@@ -46,6 +46,7 @@ def main():
 
     all_scraped = []
     data_as_of = None
+    list_fetched_at = None
     for shelter in config["shelters"]:
         if not shelter.get("enabled"):
             continue
@@ -56,6 +57,8 @@ def main():
             raise SystemExit(1)
         if shelter.get("source") == "snapshot" and not data_as_of:
             data_as_of = shelter.get("snapshot_date")
+        if shelter.get("_fetched_at") and not list_fetched_at:
+            list_fetched_at = shelter["_fetched_at"]
         if shelter.get("_stale") and not data_as_of:
             data_as_of = shelter["_fetched_at"].strftime("%B %-d, %Y")
         log.info("Shelter '%s': %d dog(s) found.", shelter["name"], len(dogs))
@@ -81,7 +84,14 @@ def main():
     log.info("Existing lookup.json entries before this run: %d", len(existing_lookup))
 
     public_dogs, new_lookup = build_datasets(all_scraped, classifications, existing_lookup, overrides)
-    dogs_json = build_dogs_json(public_dogs, data_as_of=data_as_of)
+    dogs_json = build_dogs_json(public_dogs, data_as_of=data_as_of,
+                                list_fetched_at=list_fetched_at.isoformat() if list_fetched_at else None)
+
+    # Every run publishes only dogs in the current list, so dogs that left
+    # the shelter's page (adopted, transferred) drop off here. Log how many.
+    dropped = sorted(set(existing_lookup) - set(new_lookup))
+    log.info("Dropped since last run (no longer listed, or no longer matching): %d %s",
+             len(dropped), dropped)
 
     log.info("Publishing dogs.json: %d entries.", len(public_dogs))
     log.info("New lookup.json: %d entries (was %d).", len(new_lookup), len(existing_lookup))
@@ -97,6 +107,9 @@ def main():
 
     ftp_sync.upload_text(PUBLIC_REMOTE_DIR, "dogs.json", json.dumps(dogs_json, indent=2))
     ftp_sync.upload_text(PRIVATE_REMOTE_DIR, "lookup.json", json.dumps(new_lookup, indent=2))
+    if list_fetched_at:
+        # Tells the hourly check (check_new_data.py) this list is done.
+        ftp_sync.upload_text(PRIVATE_REMOTE_DIR, "last_processed.txt", list_fetched_at.isoformat())
 
 
 if __name__ == "__main__":

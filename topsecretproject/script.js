@@ -187,8 +187,10 @@
       .then(r => r.json())
       .then(data => {
         allDogs = data.dogs || [];
-        document.getElementById("last-updated").textContent =
-          data.last_updated ? "Last updated: " + new Date(data.last_updated).toLocaleString() : "";
+        const when = [];
+        if (data.list_fetched_at) when.push("Shelter list taken " + new Date(data.list_fetched_at).toLocaleString());
+        if (data.last_updated) when.push("updated " + new Date(data.last_updated).toLocaleString());
+        document.getElementById("last-updated").textContent = when.join(" · ");
         const dataAsOf = document.getElementById("data-as-of");
         if (data.data_as_of) {
           dataAsOf.textContent = "Data as of " + data.data_as_of + " — not live; see note below.";

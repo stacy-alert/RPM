@@ -115,11 +115,14 @@ def build_datasets(scraped_dogs: list[dict], classifications: dict, existing_loo
     return public_dogs, new_lookup
 
 
-def build_dogs_json(public_dogs: list[dict], data_as_of: str | None = None) -> dict:
+def build_dogs_json(public_dogs: list[dict], data_as_of: str | None = None,
+                    list_fetched_at: str | None = None) -> dict:
     result = {
         "last_updated": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "dogs": public_dogs,
     }
     if data_as_of:
         result["data_as_of"] = data_as_of
+    if list_fetched_at:
+        result["list_fetched_at"] = list_fetched_at
     return result
