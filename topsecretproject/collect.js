@@ -7,6 +7,12 @@
   var SIZE = { s: "Small", m: "Medium", l: "Large", xl: "Extra Large" };
   function cap(x) { return x ? x.charAt(0).toUpperCase() + x.slice(1).toLowerCase() : null; }
   function low(x) { return (x || "").toLowerCase(); }
+  // CAC's data-size is free text like "mixed breed, large: (over 44lbs ...)".
+  function sizeWord(x) {
+    var m = low(x).match(/extra[- ]large|x-?large|large|medium|small/);
+    if (!m) return null;
+    return m[0].indexOf("x") === 0 || m[0].indexOf("extra") === 0 ? "Extra Large" : cap(m[0]);
+  }
 
   function show(text) {
     var old = document.getElementById("rpm-dog-box");
@@ -62,7 +68,7 @@
       photo_urls: photos,
       sex: cap(d.gender || d.sex),
       age: cap(d.afage || d.age),
-      size: SIZE[low(d.afsize)] || d.afsize || null,
+      size: SIZE[low(d.afsize)] || d.afsize || sizeWord(d.size),
       date_listed: d.intakedate || null
     });
   }
@@ -92,7 +98,7 @@
   var f = document.createElement("form");
   f.method = "POST";
   f.action = UPLOAD_URL;
-  f.target = "_blank";
+  f.target = window.__rpmSameTab ? "_self" : "_blank";
   function add(n, v) { var inp = document.createElement("input"); inp.type = "hidden"; inp.name = n; inp.value = v; f.appendChild(inp); }
   add("token", window.__rpmDogToken || "");
   add("data", JSON.stringify({ claimed_total: mt ? parseInt(mt[1], 10) : null, dogs: cards }));
