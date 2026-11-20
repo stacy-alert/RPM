@@ -18,6 +18,12 @@ AnimalsFirst internal cac_id (never shown anywhere in CAC's own UI,
 meaningless to a visitor) is still kept out of the public file — only
 lookup.json (private, FTP'd outside public_html) carries it, for the
 email flow if/when it's reconfigured.
+
+Owner decision 2026-11-20: main.py adds a "photo_url" key to each dog
+returned here (pointing at our own hosted copy of the shelter's first
+photo for that dog, or None), after this function returns -- not built
+here, since it needs the reference_code this function assigns before it
+can fetch/upload anything. See main.py's photo-hosting step.
 """
 
 import re

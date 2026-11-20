@@ -84,6 +84,20 @@
       const node = template.content.cloneNode(true);
       const match = primaryMatch(dog);
 
+      const photoImg = node.querySelector(".photo-img");
+      const photoPlaceholder = node.querySelector(".photo-placeholder");
+      if (dog.photo_url) {
+        photoImg.addEventListener("error", function onPhotoError() {
+          photoImg.removeEventListener("error", onPhotoError);
+          photoImg.hidden = true;
+          photoPlaceholder.hidden = false;
+        });
+        photoImg.src = dog.photo_url;
+        photoImg.alt = dog.name ? dog.name + "'s photo" : "";
+        photoImg.hidden = false;
+        photoPlaceholder.hidden = true;
+      }
+
       node.querySelector(".card-breed-label").textContent = match.display;
       node.querySelector(".match-text").textContent = matchLine(match);
 

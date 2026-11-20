@@ -12,8 +12,9 @@ import json
 import logging
 import os
 from pathlib import Path
+from urllib.parse import urlsplit
 
-from scraper import load_config, fetch_shelter, download_photos, ShelterBlockedError
+from scraper import load_config, fetch_shelter, download_photos, fast_get, ShelterBlockedError
 from classifier import classify_dog
 from dataset import build_datasets, build_dogs_json
 import ftp_sync
@@ -31,6 +32,23 @@ ftp_sync.require_env(
 
 PUBLIC_REMOTE_DIR = os.environ["BLUEHOST_FTP_DIR"] + "/topsecretproject"
 PRIVATE_REMOTE_DIR = os.environ.get("BLUEHOST_PRIVATE_DIR") or ftp_sync.DEFAULT_PRIVATE_DIRNAME
+PHOTOS_REMOTE_DIR = PUBLIC_REMOTE_DIR + "/photos"
+
+_CONTENT_TYPE_EXT = {
+    "image/jpeg": "jpg", "image/jpg": "jpg", "image/png": "png",
+    "image/webp": "webp", "image/gif": "gif", "image/bmp": "bmp",
+}
+
+
+def _photo_extension(response: requests.Response) -> str:
+    content_type = response.headers.get("Content-Type", "").split(";")[0].strip().lower()
+    if content_type in _CONTENT_TYPE_EXT:
+        return _CONTENT_TYPE_EXT[content_type]
+    path = urlsplit(response.url).path.lower()
+    for ext in ("jpeg", "jpg", "png", "webp", "gif", "bmp"):
+        if path.endswith("." + ext):
+            return "jpg" if ext == "jpeg" else ext
+    return "jpg"
 
 
 def main():
@@ -84,6 +102,34 @@ def main():
     log.info("Existing lookup.json entries before this run: %d", len(existing_lookup))
 
     public_dogs, new_lookup = build_datasets(all_scraped, classifications, existing_lookup, overrides)
+
+    # Host one photo per published dog ourselves rather than linking to the
+    # shelter's own copy -- fetched fresh here (not reused from the
+    # classification download above) specifically so this is always the
+    # photo_urls[0] the owner asked for, not whichever photo happened to
+    # download successfully first during classification. Only published
+    # dogs get a photo fetched/uploaded -- most scraped dogs never make it
+    # into public_dogs at all (see MATCH_THRESHOLD in classifier.py).
+    scraped_by_cac_id = {d["cac_id"]: d for d in all_scraped}
+    if public_dogs:
+        ftp_sync.ensure_dir(PHOTOS_REMOTE_DIR)
+    photo_count = 0
+    for dog in public_dogs:
+        cac_id = new_lookup[dog["reference_code"]]["cac_id"]
+        photo_urls = scraped_by_cac_id.get(cac_id, {}).get("photo_urls") or []
+        dog["photo_url"] = None
+        if not photo_urls:
+            continue
+        try:
+            response = fast_get(photo_urls[0], config, session)
+            filename = f"{dog['reference_code']}.{_photo_extension(response)}"
+            ftp_sync.upload_binary(PHOTOS_REMOTE_DIR, filename, response.content)
+            dog["photo_url"] = f"photos/{filename}"
+            photo_count += 1
+        except Exception as e:
+            log.warning("Could not fetch/host a photo for a published dog (showing placeholder): %s", e)
+    log.info("Hosted a photo for %d / %d published dog(s).", photo_count, len(public_dogs))
+
     dogs_json = build_dogs_json(public_dogs, data_as_of=data_as_of,
                                 list_fetched_at=list_fetched_at.isoformat() if list_fetched_at else None)
 

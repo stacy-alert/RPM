@@ -35,6 +35,22 @@ under its own $100k liquidated-damages clause). The AnimalsFirst
 internal `cac_id` is still never made public — only `lookup.json`
 (private) carries it.
 
+**Photos are now downloaded and hosted ourselves.** On 2026-11-20 the
+owner asked for one photo per dog on the public page, fetched and
+re-hosted under our own domain rather than hotlinked from the shelter's
+own copy. This is a further step past the 2026-11-16 decision above —
+not just text data but an actual copy of the shelter's photo, which is
+the most direct form of the ToS's no-republish risk this project has
+taken on. `main.py` fetches `photo_urls[0]` for each *published* dog
+(after breed matching, so the great majority of scraped dogs are never
+fetched at all), uploads it to `topsecretproject/photos/<reference
+code>.<ext>`, and sets that as `dogs.json`'s `photo_url` for that dog —
+never the original shelter/S3 URL. If the fetch or upload fails for any
+reason, `photo_url` stays `null` and the page shows a placeholder
+instead; there is no hotlinking fallback. See `main.py`'s
+`_photo_extension()`/photo-hosting block and `ftp_sync.upload_binary()`/
+`ensure_dir()`.
+
 ## How CAC's site actually works (confirmed against real saved HTML)
 
 CAC's listing (`/adopt/dogs/`) runs on the PetMatchPro WordPress plugin.

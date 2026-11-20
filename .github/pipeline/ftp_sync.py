@@ -80,6 +80,29 @@ def upload_text(remote_dir: str, filename: str, content: str):
         ftps.quit()
 
 
+def upload_binary(remote_dir: str, filename: str, content: bytes):
+    ftps = _connect()
+    try:
+        _cwd_logged(ftps, remote_dir)
+        ftps.storbinary(f"STOR {filename}", io.BytesIO(content))
+        log.info("Uploaded %s to %s (%d bytes)", filename, remote_dir, len(content))
+    finally:
+        ftps.quit()
+
+
+def ensure_dir(remote_dir: str):
+    """Creates remote_dir if it doesn't already exist. Its parent must
+    already exist -- this makes one directory level, not a full path."""
+    ftps = _connect()
+    try:
+        ftps.mkd(remote_dir)
+        log.info("Created directory: %s", remote_dir)
+    except error_perm as e:
+        log.info("mkd(%s) did not create a new directory (%s) -- assuming it already exists.", remote_dir, e)
+    finally:
+        ftps.quit()
+
+
 class PrivateDirUnsafeError(Exception):
     """Raised and never swallowed — the private directory appears to be
     inside the web root, which would make supposedly-private files

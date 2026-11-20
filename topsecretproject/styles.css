@@ -230,6 +230,39 @@ a { color: inherit; }
   flex-direction: column;
 }
 
+.card-photo {
+  position: relative;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  background: var(--green-100);
+  flex: none;
+}
+
+.card-photo .photo-img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.card-photo .photo-img[hidden] {
+  display: none;
+}
+
+.card-photo .photo-placeholder {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.card-photo .photo-placeholder svg {
+  width: 3rem;
+  height: 3rem;
+  fill: var(--green-300);
+}
+
 .card:hover {
   transform: translateY(-3px);
   box-shadow: var(--shadow-hover);

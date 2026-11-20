@@ -8,7 +8,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="styles.css?v=1">
+<link rel="stylesheet" href="styles.css?v=2">
 </head>
 <body>
 
@@ -96,6 +96,18 @@
 
 <template id="card-template">
   <article class="card">
+    <div class="card-photo">
+      <img class="photo-img" alt="" loading="lazy" hidden>
+      <div class="photo-placeholder" aria-hidden="true">
+        <svg viewBox="0 0 64 64">
+          <ellipse cx="32" cy="40" rx="15" ry="12"/>
+          <ellipse cx="14" cy="24" rx="6.5" ry="8"/>
+          <ellipse cx="29" cy="14" rx="6.5" ry="8.5"/>
+          <ellipse cx="46" cy="16" rx="6.5" ry="8.5"/>
+          <ellipse cx="54" cy="30" rx="6" ry="7.5"/>
+        </svg>
+      </div>
+    </div>
     <div class="card-top">
       <svg class="card-icon" viewBox="0 0 64 64" aria-hidden="true">
         <ellipse cx="32" cy="40" rx="15" ry="12"/>
@@ -121,6 +133,6 @@
   </article>
 </template>
 
-<script src="script.js?v=1"></script>
+<script src="script.js?v=2"></script>
 </body>
 </html>
