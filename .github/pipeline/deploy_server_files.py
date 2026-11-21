@@ -31,6 +31,7 @@ SMTP_PORT = int(os.environ.get("SMTP_PORT") or "465")
 MAIL_CONFIGURED = bool(
     os.environ.get("SMTP_USERNAME") and os.environ.get("SMTP_PASSWORD") and os.environ.get("NOTIFY_EMAIL_TO")
 )
+GITHUB_DISPATCH_TOKEN = os.environ.get("GITHUB_DISPATCH_TOKEN") or ""
 
 
 def php_str(value: str) -> str:
@@ -47,6 +48,7 @@ def main():
         "<?php",
         f"define('PRIVATE_DATA_PATH', {php_str(private_absolute_path)});",
         f"define('MAIL_CONFIGURED', {'true' if MAIL_CONFIGURED else 'false'});",
+        f"define('GITHUB_DISPATCH_TOKEN', {php_str(GITHUB_DISPATCH_TOKEN)});",
     ]
     if MAIL_CONFIGURED:
         config_lines += [
@@ -67,6 +69,11 @@ def main():
             "NOT configured (BLUEHOST_SMTP_USERNAME/PASSWORD/NOTIFY_EMAIL_TO not set) -- "
             "skipping; the dog list still deploys fine."
         )
+    print(
+        "GitHub Actions dispatch-on-upload: " +
+        ("configured." if GITHUB_DISPATCH_TOKEN else
+         "NOT configured (GITHUB_DISPATCH_TOKEN not set) -- upload.php will rely on the hourly schedule only.")
+    )
 
 
 if __name__ == "__main__":

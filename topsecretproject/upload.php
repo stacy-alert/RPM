@@ -8,6 +8,36 @@ declare(strict_types=1);
 header('X-Robots-Tag: noindex, nofollow');
 header('Content-Type: text/html; charset=utf-8');
 
+// Deployed by deploy_server_files.py; may not exist yet on a brand-new
+// install, so this is a soft include, not a hard require.
+if (is_readable(__DIR__ . '/config.php')) require __DIR__ . '/config.php';
+
+function dispatchGithubWorkflow(): void {
+    // Fires the breed-check workflow immediately instead of waiting for
+    // its hourly schedule (which GitHub does not run reliably on time --
+    // see topsecretproject/README.md). Best-effort: never fails the
+    // upload itself, since the hourly schedule is still a fallback.
+    if (!defined('GITHUB_DISPATCH_TOKEN') || GITHUB_DISPATCH_TOKEN === '') return;
+    if (!function_exists('curl_init')) { error_log('GitHub dispatch: curl not available on this server.'); return; }
+    $ch = curl_init('https://api.github.com/repos/stacy-alert/RPM/actions/workflows/topsecretproject-refresh.yml/dispatches');
+    curl_setopt_array($ch, [
+        CURLOPT_POST => true,
+        CURLOPT_POSTFIELDS => json_encode(['ref' => 'main']),
+        CURLOPT_HTTPHEADER => [
+            'Authorization: Bearer ' . GITHUB_DISPATCH_TOKEN,
+            'Accept: application/vnd.github+json',
+            'User-Agent: rpm-shelter-breed-preview',
+            'X-GitHub-Api-Version: 2022-11-28',
+        ],
+        CURLOPT_RETURNTRANSFER => true,
+        CURLOPT_TIMEOUT => 10,
+    ]);
+    $resp = curl_exec($ch);
+    $code = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+    curl_close($ch);
+    error_log('GitHub workflow dispatch: HTTP ' . $code . ($resp ? (' ' . substr((string)$resp, 0, 300)) : ''));
+}
+
 function page(string $msg, int $code = 200): void {
     http_response_code($code);
     echo '<!doctype html><meta name="robots" content="noindex,nofollow">'
@@ -95,7 +125,11 @@ $claimed = isset($data['claimed_total']) && is_int($data['claimed_total']) ? $da
 $out = json_encode(['fetched_at' => gmdate('c'), 'claimed_total' => $claimed, 'dogs' => $dogs]);
 if (file_put_contents($private . '/cac_raw.json', $out, LOCK_EX) === false) page('Could not save the list.', 500);
 
+dispatchGithubWorkflow();
+
 $msg = 'Saved ' . count($dogs) . ' dogs.';
 if ($claimed !== null && count($dogs) < $claimed) $msg .= ' The shelter page says it has ' . $claimed . ', so scroll all the way to the bottom and tap the bookmark again to get the rest.';
-$msg .= ' The site updates the next time the breed check runs.';
+$msg .= (defined('GITHUB_DISPATCH_TOKEN') && GITHUB_DISPATCH_TOKEN !== '')
+    ? ' The site is updating now.'
+    : ' The site updates within the hour.';
 page($msg);

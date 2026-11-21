@@ -110,6 +110,27 @@ been exercised against the real site, since every live attempt either
 failed on missing secrets or hit the 403 block above. Revisit this once
 live fetching is possible again.
 
+## Why the hourly schedule alone runs hours late, and the fix
+
+GitHub's `schedule` trigger is not reliable at hourly frequency. Pulling
+the actual `created_at` timestamps of this workflow's `schedule`-triggered
+runs (2026-11-17 through 2026-11-21) shows gaps of 5-10 hours between
+runs, not the ~1 hour the cron expression (`23 * * * *`) asks for —
+GitHub's own docs say scheduled workflows "can be delayed during periods
+of high load" and runs may be dropped outright, and in practice this repo
+sees far fewer firings than requested. No cron-offset tweak fixes this;
+the trigger itself just doesn't run on time.
+
+The real fix (2026-11-21): `upload.php` calls GitHub's API to fire
+`workflow_dispatch` on this workflow directly, the moment `cac_raw.json`
+is saved — seconds after the Pi's (or a manual bookmark's) upload
+finishes, instead of waiting on GitHub's own unreliable poll.
+`check_new_data.py` already processes unconditionally on
+`workflow_dispatch`, so no gating logic needed to change. The hourly
+`schedule` stays in place as a fallback in case the direct call ever
+fails (expired token, GitHub API hiccup) — belt and suspenders, not
+either/or.
+
 ## Required GitHub repository secrets
 
 Reuses the main site's FTP secrets, plus just three more:
@@ -119,6 +140,7 @@ Reuses the main site's FTP secrets, plus just three more:
 | `BLUEHOST_SMTP_USERNAME` | A Bluehost mailbox on the domain, e.g. `dogs@rpmhabitatconservation.org` — create one in cPanel under Email Accounts if none exists yet |
 | `BLUEHOST_SMTP_PASSWORD` | That mailbox's password |
 | `NOTIFY_EMAIL_TO` | Where "Ask about this dog" inquiries get sent |
+| `GH_DISPATCH_TOKEN` | Optional. A GitHub token so `upload.php` can trigger this workflow immediately on upload (see above) instead of relying solely on the hourly schedule. Create a fine-grained personal access token (Settings → Developer settings → Personal access tokens → Fine-grained tokens) scoped to **only this repository**, with repository permission **Actions: Read and write**, nothing else. Without it, the dog list still updates — just only whenever GitHub's hourly schedule actually fires. Note: can't be named `GITHUB_*` — GitHub reserves that prefix for its own secrets, which is why this one is `GH_DISPATCH_TOKEN`. |
 
 The dog list alone (no inquiry form) needs none of these beyond the FTP
 secrets already in use — the private directory and its path are created
